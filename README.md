@@ -54,6 +54,7 @@ Summary
 I'm looking to add the following features:
 - [ ] Start the WebClient service on targets using searchConnector-ms and library-ms files (see [The Hacker Recipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#start-the-webclient-service) and [Farmer Source Code](https://github.com/mdsecactivebreach/Farmer/blob/main/crop/Crop/Crop.cs))
 - [ ] Coerce HTTP authentication with WebDAV connection strings (see [The Hacker Recipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#abuse))
+- [ ] Add a progress bar for share crawling
 - [ ] Enable ticket based authnentication (Kerberos)
 - [ ] Multithreading/Multiprocessing for faster share crawling
 
