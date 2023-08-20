@@ -1,7 +1,9 @@
 # LinkSiren
 
 ## What is this tool?
-LinkSiren distributes .url files to accessible file shares to coerce NTLM authentication from hosts that open them, like [Farmer](https://github.com/mdsecactivebreach/Farmer/tree/1f37598125a92c9edf41295c6c1b7c258143968d), [Lnkbomb](https://github.com/dievus/lnkbomb), or [Slinky](https://www.infosecmatter.com/crackmapexec-module-library/?cmem=smb-slinky) but with prioritized locations and scalable deployment and cleanup.
+_The Siren waits thee, singing song for song._ - Walter Savage Landor
+
+LinkSiren distributes .url files to accessible file shares to coerce NetNTLM authentication from hosts that open them, like [Farmer](https://github.com/mdsecactivebreach/Farmer/tree/1f37598125a92c9edf41295c6c1b7c258143968d), [Lnkbomb](https://github.com/dievus/lnkbomb), or [Slinky](https://www.infosecmatter.com/crackmapexec-module-library/?cmem=smb-slinky) but with prioritized locations and scalable deployment and cleanup.
 
 ## How do I use this NOW?
 ```bash
