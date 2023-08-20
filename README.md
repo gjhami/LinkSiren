@@ -36,13 +36,13 @@ python link_siren.py --username <username> --password <password> --domain <domai
 # 4. Let the hashes come to you and relay them as you see fit :) (I recommend CrackMapExec and LdapRelayScan for target identification)
 # 5. Cleanup the payload files when you're finished gathering.
 #    Set targets to a file containing UNC paths of all folders where payloads were written
-#    Note: If you set a custom payload name when deploying, you must set the same name here
 #    --deploy saves UNC paths to deployed payloads in payload_folders.txt
+#    Note: If you set a custom payload name (--payload) when deploying, you must set the same name here
 python link_siren.py --username <username> --password <password> --domain <domain.tld> --targets payloads_written.txt --cleanup
 ```
 
 ## How is this better than the other tools?
-Other tools are built to place a single malicious .url file at a specified location and clean them up one at a time. But if you find yourself with access to a lot of shares you may want things to scale and you may not be in the mood to write a wrapper. LinkSiren crawls shares you currently have access to and ranks every subfolder based on the liklihood it will be opened by a user soon so you can target .url file distribution. Additionally, LinkSiren records the full UNC path of every .url file it creates, allowing for cleanup with a single command.
+Other tools are built to place a single malicious .url file at a specified location and clean up that one malicious .url file. If you find yourself with access to a lot of shares you may want things to scale and you may not be in the mood to write a wrapper. LinkSiren crawls shares you currently have access to and ranks every subfolder based on the liklihood it will be opened by a user sometime soon. Then it uses this information to target malicious .url file distribution to multiple locations at once. Additionally, LinkSiren records the full UNC path of every .url file it creates, allowing for cleanup with a single command.
 
 Summary
 - Scales to an arbitrary number of .url files
