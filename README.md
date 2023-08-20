@@ -15,7 +15,7 @@ python link_siren.py --username <username> --password <password> --domain <domai
 
 ## How do I use this the \~right\~ way?
 ```bash
-# Download and install requirements
+# Get the project
 git clone https://github.com/gjhami/LinkSiren.git
 cd LinkSiren
 
