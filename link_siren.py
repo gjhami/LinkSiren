@@ -29,7 +29,6 @@ def review_folder(folder_rankings, unc_path, active_threshold, depth, fast):
     """
     ranking = 0
     folders = []
-
     # Use scandir as a more efficient directory listing as it already contains info like stat and
     # attributes.
     for file_info in scandir(unc_path):
@@ -60,8 +59,11 @@ def review_folder(folder_rankings, unc_path, active_threshold, depth, fast):
     if depth - 1 > 0:  # If the max depth has not been reached
         # Then review each subfolder, appending the results of the review to the folder_rankings
         for subfolder_unc in folders:
-            folder_rankings = folder_rankings | review_folder(folder_rankings, subfolder_unc,
-                                                              active_threshold, depth - 1, fast)
+            folder_rankings = {**folder_rankings, **review_folder(folder_rankings, subfolder_unc,
+                                                              active_threshold, depth - 1, fast)}
+            # Requires python 3.9 or greater, commented for >= python 3.5 compatability
+            # folder_rankings = folder_rankings | review_folder(folder_rankings, subfolder_unc,
+            #                                                  active_threshold, depth - 1, fast)
 
     # Update folder_rankings with the rank of the current folder and return it
     folder_rankings[unc_path] = ranking
@@ -95,7 +97,7 @@ parser.add_argument('--attacker', required='--deploy' in sys.argv,
                     help='Attacker IP or hostname to place in malicious URL')
 
 # For deployment and cleanup
-parser.add_argument('--payload', default='!Test Do Not Remove.url', help='Name of payload file '
+parser.add_argument('--payload', default='@Test Do Not Remove.url', help='Name of payload file '
                                                                          'ending in .url')
 
 # Modes
@@ -139,8 +141,8 @@ if args.identify:  # If the identification functionality is used to identify act
 
     # For each share target in the list
     for share in targets:
-        # Filter the dictionary to only include keys that contain the share target
-        matching_share_paths = [key for key in sorted_rankings.keys() if share in key]
+        # Filter the dictionary to only include keys that begin with the share target
+        matching_share_paths = [key for key in sorted_rankings.keys() if share == key or f'{share}\\' == key[:len(share)+1]]
 
         # Sort the matching share paths based on their ranking and keep only the top N
         top_matching_share_paths = sorted(matching_share_paths,
