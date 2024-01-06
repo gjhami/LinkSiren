@@ -99,7 +99,7 @@ parser.add_argument('--attacker', required='--deploy' in sys.argv,
                     help='Attacker IP or hostname to place in malicious URL')
 
 # For deployment and cleanup
-parser.add_argument('--payload', default='@Test_Do_Not_Remove.library-MS', required='--deploy' in
+parser.add_argument('--payload', default='@Test_Do_Not_Remove.searchConnector-ms', required='--deploy' in
                     sys.argv or '--cleanup' in sys.argv, help='Name of payload file ending in'
                                                               '.library-ms, .searchConnector-ms, '
                                                               'or .url')
