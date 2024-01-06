@@ -100,8 +100,9 @@ parser.add_argument('--attacker', required='--deploy' in sys.argv,
 
 # For deployment and cleanup
 parser.add_argument('--payload', default='@Test_Do_Not_Remove.library-MS', required='--deploy' in
-                    sys.argv or '--cleanup' in sys.argv, help='Name of payload file ending in .url'
-                                                              ' or .library-ms')
+                    sys.argv or '--cleanup' in sys.argv, help='Name of payload file ending in'
+                                                              '.library-ms, .searchConnector-ms, '
+                                                              'or .url')
 
 # Modes
 parser.add_argument('--identify', action='store_true',
@@ -166,6 +167,8 @@ elif args.deploy:  # Else if the deploy functionality is used to deploy payloads
     # Select a template file name based on the payload name
     if '.library-ms' in args.payload:
         template_name = 'library_template.library-ms'
+    elif '.searchConnector-ms' in args.payload:
+        template_name = 'searchConnector_template.searchConnector-ms'
     elif '.url' in args.payload:
         template_name = 'url_template.url'
 
