@@ -3,7 +3,7 @@
 ## What is this tool?
 _The Siren waits thee, singing song for song._ - Walter Savage Landor
 
-LinkSiren distributes .url files to accessible file shares to coerce NetNTLM authentication from hosts that open them, like [Farmer](https://github.com/mdsecactivebreach/Farmer/tree/1f37598125a92c9edf41295c6c1b7c258143968d), [Lnkbomb](https://github.com/dievus/lnkbomb), or [Slinky](https://www.infosecmatter.com/crackmapexec-module-library/?cmem=smb-slinky) but with prioritized locations and scalable deployment and cleanup.
+LinkSiren distributes .library-ms, .searchConnector-ms, and .url files to accessible file shares to coerce NetNTLM authentication over SMB or HTTP from hosts that open them. It's like [Farmer](https://github.com/mdsecactivebreach/Farmer/tree/1f37598125a92c9edf41295c6c1b7c258143968d), [Lnkbomb](https://github.com/dievus/lnkbomb), or [Slinky](https://www.infosecmatter.com/crackmapexec-module-library/?cmem=smb-slinky) but it identifies the best place to put the files for coercion and has scalable deployment and cleanup built in.
 
 ## How do I use this NOW?
 ```bash
@@ -48,19 +48,19 @@ python link_siren.py --username <username> --password <password> --domain <domai
 ```
 
 ## How is this better than the other tools?
-Other tools are built to place a single malicious .url file at a specified location and clean up that one malicious .url file. If you find yourself with access to a lot of shares you may want things to scale and you may not be in the mood to write a wrapper. LinkSiren crawls shares you currently have access to and ranks every subfolder based on the liklihood it will be opened by a user sometime soon. Then it uses this information to target malicious .url file distribution to multiple locations at once. Additionally, LinkSiren records the full UNC path of every .url file it creates, allowing for cleanup with a single command.
+Other tools are built to place a single malicious .searchConnector-ms, .library-ms, or .url file at a specified location and clean up that one malicious file. If you find yourself with access to a lot of shares you may want things to scale and you may not be in the mood to write a wrapper. LinkSiren crawls shares you currently have access to and ranks every subfolder based on the liklihood it will be opened by a user sometime soon. Then it uses this information to target malicious file distribution to multiple locations at once. Additionally, LinkSiren records the full UNC path of malicious file it creates, allowing for cleanup with a single command.
 
 Summary
-- Scales to an arbitrary number of .url files
-- Targeted .url placement
-- Single command cleanup
+- Scales to an arbitrary number of malicious .searchConnector-ms, .library-ms, or .url files
+- Targeted malicious file placement
+- Single command deployment and cleanup
 - Cross platform with python
   
 ## How will you make it even better?
 I'm looking to add the following features:
 - [x] Start the WebClient service on targets using searchConnector-ms and library-ms files (see [The Hacker Recipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#start-the-webclient-service) and [Farmer Source Code](https://github.com/mdsecactivebreach/Farmer/blob/main/crop/Crop/Crop.cs))
 - [x] Coerce HTTP authentication with WebDAV connection strings (see [The Hacker Recipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#abuse))
-- [ ] Support additional file types: SCF and LNK (per [MITRE](https://attack.mitre.org/techniques/T1187/))
+- [x] ~~Support additional file types: SCF and LNK (per [MITRE](https://attack.mitre.org/techniques/T1187/)).~~ .searchConnector-ms and .library-ms files pursued instead for their ability to start the WebClient service as part of HTTP authentication coercion.
 - [ ] Multithreading/Multiprocessing for faster share crawling
 - [ ] Add a progress bar for share crawling
 - [ ] Enable authentication using a NTLM hash
