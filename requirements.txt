@@ -1,1 +1,1 @@
-smbprotocol==1.10.1
+smbprotocol==1.12.0
