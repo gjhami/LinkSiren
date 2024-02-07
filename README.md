@@ -92,6 +92,8 @@ I'm looking to add the following features:
 - [x] Start the WebClient service on targets using searchConnector-ms and library-ms files (see [The Hacker Recipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#start-the-webclient-service) and [Farmer Source Code](https://github.com/mdsecactivebreach/Farmer/blob/main/crop/Crop/Crop.cs))
 - [x] Coerce HTTP authentication with WebDAV connection strings (see [The Hacker Recipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#abuse))
 - [ ] Add a safe mode that checks if a file can be deleted from a target share before deploying it.
+    - This can be accomplished by reviewing ACLs over SMB but is only useful if the SIDs in the ACLs can be mapped to the username used to connect to the share. WMI / RPC over SMB could be used to get SID information to map SIDs to usernames (definitely local, maybe also domain). Alternatively, LDAP could be queries for SID information associated with domain users in AD environments.
+    - Alternatively, this could be accomplished by attempting to write a test file to the target directory and then delete it. This is what crackmapexec does.
 - [ ] Add an instructions sections that details how to get intranet zoned (Blog Post In Progress)
 - [ ] Test for anonymous access to shares
 - [ ] Add an explanation of how this can be used with ntlmrelayx (Blog Post In Progress)
