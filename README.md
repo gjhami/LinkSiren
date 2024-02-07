@@ -9,12 +9,13 @@ LinkSiren distributes .library-ms, .searchConnector-ms, .url, and .lnk files to 
 1. (Optional) Get Intranet-Zoned if you want to coerce HTTP authentication. See the note in [theHackerRecipes WebClient Abuse](https://www.thehacker.recipes/a-d/movement/mitm-and-coerced-authentications/webclient#abuse).
 2. Create a list of UNC paths to writeable SMB shares.
     - Note: Make sure you can delete files in them for cleanup.
-3. [Optional] Run LinkSiren in `--generate`
-4. Run LinkSiren in `--identify` mode to find the best places to put poisoned files.
-5. Start a listener or relay on your attacker machine to capture and/or relay coerced authentication.
-6. Run LinkSiren in `--deploy` mode to place payloads in the optimal locations identified.
-7. Let the hashes roll in.
-8. Run LinkSiren in `--cleanup` mode to delete all the poisoned files.
+3. [Optional] Run LinkSiren in `generate` mode to write templates locally
+4. [Optional] Run LinkSiren in `rank` mode to output rankings for accessible folders based on recent access.
+5. Run LinkSiren in `identify` mode to find the best places to put poisoned files.
+6. Start a listener or relay on your attacker machine to capture and/or relay coerced authentication.
+7. Run LinkSiren in `deploy` mode to place payloads in the optimal locations identified.
+8. Let the hashes roll in. Relay and/or crack as desired.
+9. Run LinkSiren in `cleanup` mode to delete all the poisoned files.
 
 ## What Payload Type Should I Use?
 Search Connectors (.searchConnector-ms): This is generally the best option. They require the least amount of interaction, start the WebClient service from a stopped state automatically, and are capable of coercing both SMB and HTTP authentication using a single file.
