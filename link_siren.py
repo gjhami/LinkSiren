@@ -371,7 +371,7 @@ def main():
     generate_required_group = generate_parser.add_argument_group('Required Arguments')
     generate_required_group.add_argument('-a', '--attacker', required=True,
                         help='Attacker IP or hostname to place in malicious URL')
-    generate_parser.add_argument('-n', '--payload', default='@Test_Do_Not_Remove.searchConnector-ms', help='Name '
+    generate_parser.add_argument('-n', '--payload', default='@Test_Do_Not_Remove.searchConnector-ms', help='(Default: @Test_Do_Not_Remove.searchConnector-ms) Name '
                         'of payload file ending in .library-ms, .searchConnector-ms, .lnk, or .url')
 
     # Arguments for outputting rankings of potential folders into which to place poisoned files
@@ -387,11 +387,11 @@ def main():
                         help='Path to a text file containing UNC paths to file shares / base '
                         'directories within which to rank folders as potential locations for placing'
                         ' poisoned files.')
-    rank_parser.add_argument('-md', '--max-depth', type=int, default=3, help='The maximum depth of folders to '
+    rank_parser.add_argument('-md', '--max-depth', type=int, default=3, help='(Default: 3) The maximum depth of folders to '
                         'search within the target.')
-    rank_parser.add_argument('-at', '--active-threshold', type=int, default=2, help='Number of days as an '
+    rank_parser.add_argument('-at', '--active-threshold', type=int, default=2, help='(Default: 2) Number of days as an '
                         'integer for active files.')
-    rank_parser.add_argument('-f', '--fast', action='store_true', default=False, help='Mark folders active as'
+    rank_parser.add_argument('-f', '--fast', action='store_true', default=False, help='(Default: False) Mark folders active as'
                         ' soon as one active file in them is identified and move on. Ranks are '
                         'all set to 1 assigned.')
 
@@ -408,14 +408,14 @@ def main():
     identify_required_group.add_argument('-t', '--targets', required=True,
                         help='Path to a text file containing UNC paths to file shares / base '
                         'directories for deployment or from which to remove payload files')
-    idenitfy_parser.add_argument('-md', '--max-depth', type=int, default=3, help='The maximum depth of folders to '
+    idenitfy_parser.add_argument('-md', '--max-depth', type=int, default=3, help='(Default: 3) The maximum depth of folders to '
                         'search within the target')
-    idenitfy_parser.add_argument('-at', '--active-threshold', type=int, default=2, help='Max number of days since '
+    idenitfy_parser.add_argument('-at', '--active-threshold', type=int, default=2, help='(Default: 2) Max number of days since '
                                  ' within which a file is considered active.')
-    idenitfy_parser.add_argument('-f', '--fast', action='store_true', default=False, help='Mark folders active as'
+    idenitfy_parser.add_argument('-f', '--fast', action='store_true', default=False, help='(Default: False) Mark folders active as'
                         ' soon as one active file in them is identified and move on. Ranks are '
                         'all set to 1.')
-    idenitfy_parser.add_argument('-mf', '--max-folders-per-target', type=int, default=10, help='Maximum number of '
+    idenitfy_parser.add_argument('-mf', '--max-folders-per-target', type=int, default=10, help='(Default: 10) Maximum number of '
                             'folders to output as deployment targets per supplied target share or '
                             'folder.')
 
@@ -434,7 +434,7 @@ def main():
                          'files will be deployed.')
     deploy_required_group.add_argument('-a', '--attacker', required=True, help='Attacker IP or hostname to place in poisoned '
                         'files.')
-    deploy_parser.add_argument('-n', '--payload', default='@Test_Do_Not_Remove.searchConnector-ms', help='Name '
+    deploy_parser.add_argument('-n', '--payload', default='@Test_Do_Not_Remove.searchConnector-ms', help='(Default: @Test_Do_Not_Remove.searchConnector-ms) Name '
                             'of payload file ending in .library-ms, .searchConnector-ms, .lnk, or .url')
 
     # Arguments for cleaning up deployed payloads when finished
@@ -452,7 +452,7 @@ def main():
                          'files are located.')
     cleanup_required_group.add_argument('-a', '--attacker', required=True, help='Attacker IP or hostname to place in poisoned '
                         'files.')
-    cleanup_parser.add_argument('-n', '--payload', default='@Test_Do_Not_Remove.searchConnector-ms', help='Name '
+    cleanup_parser.add_argument('-n', '--payload', default='@Test_Do_Not_Remove.searchConnector-ms', help='(Default: @Test_Do_Not_Remove.searchConnector-ms) Name '
                             'of payload file ending in .library-ms, .searchConnector-ms, .lnk, or .url')
 
     # Parse arguments
