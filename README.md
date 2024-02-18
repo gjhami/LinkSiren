@@ -15,7 +15,8 @@ usage: link_siren.py generate [-h] -a ATTACKER [-n PAYLOAD]
 optional arguments:
   -h, --help            show this help message and exit
   -n PAYLOAD, --payload PAYLOAD
-                        Name of payload file ending in .library-ms, .searchConnector-ms, .lnk, or .url
+                        (Default: @Test_Do_Not_Remove.searchConnector-ms) Name of payload file ending in .library-ms,
+                        .searchConnector-ms, .lnk, or .url
 
 Required Arguments:
   -a ATTACKER, --attacker ATTACKER
@@ -31,10 +32,11 @@ usage: link_siren.py rank [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS [-md
 optional arguments:
   -h, --help            show this help message and exit
   -md MAX_DEPTH, --max-depth MAX_DEPTH
-                        The maximum depth of folders to search within the target.
+                        (Default: 3) The maximum depth of folders to search within the target.
   -at ACTIVE_THRESHOLD, --active-threshold ACTIVE_THRESHOLD
-                        Number of days as an integer for active files.
-  -f, --fast            Mark folders active as soon as one active file in them is identified and move on. Ranks are all set to 1 assigned.
+                        (Default: 2) Number of days as an integer for active files.
+  -f, --fast            (Default: False) Mark folders active as soon as one active file in them is identified and move on.
+                        Ranks are all set to 1 assigned.
 
 Required Arguments:
   -u USERNAME, --username USERNAME
@@ -44,24 +46,28 @@ Required Arguments:
   -d DOMAIN, --domain DOMAIN
                         Domain for authenticating to each share.Specify "." for local authentication
   -t TARGETS, --targets TARGETS
-                        Path to a text file containing UNC paths to file shares / base directories within which to rank folders as potential locations for placing poisoned files.
+                        Path to a text file containing UNC paths to file shares / base directories within which to rank
+                        folders as potential locations for placing poisoned files.
 ```
 
 ## Identify
 Given a list of accessible shares and customizable constraints, including a maximum number of target folders per share, output UNC paths to the optimal folders for placing poisoned files.
 ```
 python .\link_siren.py identify --help
-usage: link_siren.py identify [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f] [-mf MAX_FOLDERS_PER_TARGET]
+usage: link_siren.py identify [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f]
+                              [-mf MAX_FOLDERS_PER_TARGET]
 
 optional arguments:
   -h, --help            show this help message and exit
   -md MAX_DEPTH, --max-depth MAX_DEPTH
-                        The maximum depth of folders to search within the target
+                        (Default: 3) The maximum depth of folders to search within the target
   -at ACTIVE_THRESHOLD, --active-threshold ACTIVE_THRESHOLD
-                        Max number of days since within which a file is considered active.
-  -f, --fast            Mark folders active as soon as one active file in them is identified and move on. Ranks are all set to 1.
+                        (Default: 2) Max number of days since within which a file is considered active.
+  -f, --fast            (Default: False) Mark folders active as soon as one active file in them is identified and move on.
+                        Ranks are all set to 1.
   -mf MAX_FOLDERS_PER_TARGET, --max-folders-per-target MAX_FOLDERS_PER_TARGET
-                        Maximum number of folders to output as deployment targets per supplied target share or folder.
+                        (Default: 10) Maximum number of folders to output as deployment targets per supplied target share or
+                        folder.
 
 Required Arguments:
   -u USERNAME, --username USERNAME
@@ -71,7 +77,8 @@ Required Arguments:
   -d DOMAIN, --domain DOMAIN
                         Domain for authenticating to each share.Specify "." for local authentication
   -t TARGETS, --targets TARGETS
-                        Path to a text file containing UNC paths to file shares / base directories for deployment or from which to remove payload files
+                        Path to a text file containing UNC paths to file shares / base directories for deployment or from
+                        which to remove payload files
 ```
 
 ## Deploy
@@ -83,7 +90,8 @@ usage: link_siren.py deploy [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS -a
 optional arguments:
   -h, --help            show this help message and exit
   -n PAYLOAD, --payload PAYLOAD
-                        Name of payload file ending in .library-ms, .searchConnector-ms, .lnk, or .url
+                        (Default: @Test_Do_Not_Remove.searchConnector-ms) Name of payload file ending in .library-ms,
+                        .searchConnector-ms, .lnk, or .url
 
 Required Arguments:
   -u USERNAME, --username USERNAME
@@ -107,7 +115,8 @@ usage: link_siren.py cleanup [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS -
 optional arguments:
   -h, --help            show this help message and exit
   -n PAYLOAD, --payload PAYLOAD
-                        Name of payload file ending in .library-ms, .searchConnector-ms, .lnk, or .url
+                        (Default: @Test_Do_Not_Remove.searchConnector-ms) Name of payload file ending in .library-ms,
+                        .searchConnector-ms, .lnk, or .url
 
 Required Arguments:
   -u USERNAME, --username USERNAME
