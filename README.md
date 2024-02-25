@@ -4,16 +4,20 @@ _The Siren waits thee, singing song for song._ - Walter Savage Landor
 LinkSiren distributes .library-ms, .searchConnector-ms, .url, and .lnk files to accessible file shares to coerce NetNTLM and Kerberos authentication over SMB and HTTP from hosts that open them. It's like [Farmer](https://github.com/mdsecactivebreach/Farmer/tree/1f37598125a92c9edf41295c6c1b7c258143968d), [Lnkbomb](https://github.com/dievus/lnkbomb), or [Slinky](https://www.infosecmatter.com/crackmapexec-module-library/?cmem=smb-slinky) but it identifies the best place to put the files for coercion and has scalable deployment and cleanup built in.
 
 # Installation
-Install using pip
+## Install using pipx (Recommended)
 ```
-# Optional: Create a virtual environment
-python -m pip install linksiren
+# Install pipx if necessary
+python3 -m pip install pipx
+pipx ensurepath
+
+# Install linksiren
+pipx install linksiren
 
 # Run with -h to output help info
 linksiren -h
 ```
 
-Install from source
+## Install from source
 ```
 # Download source code
 git clone https://github.com/gjhami/LinkSiren.git
