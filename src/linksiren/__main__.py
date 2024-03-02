@@ -120,9 +120,10 @@ def main():
     # Parse arguments
     args = parser.parse_args()
 
+    available_extensions = ['.searchConnector-ms', '.library-ms', '.url', '.lnk']
+
     if args.mode == 'generate':
         # Validate the provided payload name and exit if it's invalid
-        available_extensions = ['.searchConnector-ms', '.library-ms', '.url', '.lnk']
         if not is_valid_payload_name(args.payload, available_extensions):
             return
 
@@ -184,7 +185,6 @@ def main():
         payloads_written = []  # Track the UNC path of the folder to which each payload is written
 
         # Validate the provided payload name and exit if it's invalid
-        available_extensions = ['searchConnector-ms', 'library-ms', 'url', 'lnk']
         if not is_valid_payload_name(args.payload, available_extensions):
             return
 
