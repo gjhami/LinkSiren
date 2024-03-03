@@ -129,7 +129,7 @@ def main():
 
         # Select a template file name based on the payload name
         payload_extension = Path(args.payload).suffix
-        template_path = Path(__file__).parent / f'template.{payload_extension}'
+        template_path = Path(__file__).parent / f'template{payload_extension}'
 
         if payload_extension == '.lnk':
             lnk_template = get_lnk_template(template_path)

@@ -10,6 +10,7 @@ from smbclient import scandir, remove, open_file
 from smbprotocol.exceptions import SMBException
 from linksiren.pure_functions import is_active_file, sort_rankings
 
+
 def write_payload_local(payload_name, payload_contents):
     """
     write_payload_local(payload_name, payload_contents)
@@ -27,18 +28,19 @@ def write_payload_local(payload_name, payload_contents):
     extension = Path(payload_name).suffix
 
     if extension == '.lnk':
-        mode = 'wb'
-        newline = '\r\n'
+        try:  # Try to write the payload
+            with open(payload_name, mode='wb') as payload_file:
+                payload_file.write(payload_contents)
+        except Exception as e:  # Print a message and don't track the folder if writing the payload to it fails
+            print(f'Failed to write payload at: {payload_name}\n{e}')
+            return False
     else:
-        mode = 'w'
-        newline = None
-
-    try:  # Try to write the payload
-        with open(payload_name, mode=mode, newline=newline) as payload_file:
-            payload_file.write(payload_contents)
-    except:  # Print a message and don't track the folder if writing the payload to it fails
-        print(f'Failed to write payload at: {payload_name}')
-        return False
+        try:  # Try to write the payload
+            with open(payload_name, mode='w', newline='\r\n') as payload_file:
+                payload_file.write(payload_contents)
+        except:  # Print a message and don't track the folder if writing the payload to it fails
+            print(f'Failed to write payload at: {payload_name}')
+            return False
 
     # If writing the payload doesn't fail, then return True
     return True
@@ -94,6 +96,7 @@ def review_folder(folder_rankings, unc_path, active_threshold_date, depth, fast)
     folders = []
     reviewed = False
     depth_reached = depth <= 1
+
     # Use scandir as a more efficient directory listing as it already contains info like stat and
     # attributes.
     for file_info in scandir(unc_path):
@@ -207,18 +210,19 @@ def write_payload_remote(folder_unc, payload_name, payload_contents):
     extension = Path(payload_name).suffix
 
     if extension == '.lnk':
-        mode = 'wb'
-        newline = None
+        try:  # Try to write the payload
+            with open_file(payload_unc, mode='wb') as payload_file:
+                payload_file.write(payload_contents)
+        except:  # Print a message and don't track the folder if writing the payload to it fails
+            print(f'Failed to write payload at: {payload_unc}')
+            return False
     else:
-        mode = 'w'
-        newline = '\r\n'
-
-    try:  # Try to write the payload
-        with open_file(payload_unc, mode=mode, newline=newline) as payload_file:
-            payload_file.write(payload_contents)
-    except:  # Print a message and don't track the folder if writing the payload to it fails
-        print(f'Failed to write payload at: {payload_unc}')
-        return False
+        try:  # Try to write the payload
+            with open_file(payload_unc, mode='w', newline='\r\n') as payload_file:
+                payload_file.write(payload_contents)
+        except:  # Print a message and don't track the folder if writing the payload to it fails
+            print(f'Failed to write payload at: {payload_unc}')
+            return False
 
     # If writing the payload doesn't fail, then return True
     return True
@@ -248,6 +252,6 @@ def delete_payload(payload_folder, payload_name):
 
 def get_lnk_template(template_path):
     with open(template_path, 'rb') as lnk:
-        shortcut_bytes = list(lnk.read())
+        shortcut = list(lnk.read())
 
-    return shortcut_bytes
+    return shortcut
