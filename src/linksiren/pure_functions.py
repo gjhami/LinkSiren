@@ -77,7 +77,7 @@ def create_lnk_payload(attacker_ip, template_bytes):
     for i in range(0, len(target_unc_path)):
         payload_bytes[target_unc_offset + i] = target_unc_path[i]
 
-    return payload_bytes
+    return bytes(payload_bytes)
 
 
 def compute_threshold_date(current_date, theshold_length):
