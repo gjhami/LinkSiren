@@ -7,8 +7,31 @@ bulk cleanup multiple types of payloads from the identified locations.
 """
 
 from datetime import datetime, timedelta
+import linksiren.target
 from pathlib import Path
 
+def process_targets(unc_paths: list):
+    targets = []
+    for unc_path in unc_paths:
+        host, path = parse_target(unc_path)
+
+        target_handled = False
+        for target in targets:
+            if target.host == host:
+                target.add_path(path=path)
+                target_handled = True
+                break
+
+        if target_handled is False:
+            targets.append(linksiren.target.HostTarget(host=host, paths=[path]))
+
+    return targets
+
+def parse_target(unc_path: str):
+    host = unc_path.split('\\')[2]
+    path = '\\'.join(unc_path.split('\\')[3:])
+
+    return host, path
 
 def is_valid_payload_name(payload_name, available_extensions):
     """
@@ -115,15 +138,17 @@ def filter_targets(targets, sorted_rankings, max_folders_per_target):
     filtered_rankings = []
 
     # For each share target in the list
-    for share in targets:
-        # Filter the dictionary to only include keys that begin with the share target
-        matching_share_paths = [key for key in sorted_rankings.keys() if share == key or f'{share}\\' == key[:len(share)+1]]
+    for target in targets:
+        for path in target.paths:
+            share = f'\\\\{target.host}\\{path.split("\\")[0]}'
+            # Filter the dictionary to only include keys that begin with the share target
+            matching_share_paths = [key for key in sorted_rankings.keys() if share == key or f'{share}\\' == key[:len(share)+1]]
 
-        # Sort the matching share paths based on their ranking and keep only the top N
-        top_matching_share_paths = sorted(matching_share_paths,
-                                        key=lambda key: sorted_rankings[key], reverse=True)[:max_folders_per_target]
+            # Sort the matching share paths based on their ranking and keep only the top N
+            top_matching_share_paths = sorted(matching_share_paths,
+                                            key=lambda key: sorted_rankings[key], reverse=True)[:max_folders_per_target]
 
-        # Update the sorted_rankings dictionary with the top N matching share paths
-        filtered_rankings.extend(top_matching_share_paths)
+            # Update the sorted_rankings dictionary with the top N matching share paths
+            filtered_rankings.extend(top_matching_share_paths)
 
     return filtered_rankings
