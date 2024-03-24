@@ -1,4 +1,5 @@
 from impacket.smbconnection import SMBConnection, SessionError
+from impacket.dcerpc.v5.srvs import STYPE_DISKTREE, STYPE_MASK
 import linksiren.pure_functions
 
 class HostTarget:
@@ -8,7 +9,7 @@ class HostTarget:
     Attributes:
     host: str - the hostname or IP address of the target
     '''
-    def __init__(self, host: str, paths: list[str], connection: SMBConnection = None, logged_in: bool = False):
+    def __init__(self, host: str, paths: list[str] = [], connection: SMBConnection = None, logged_in: bool = False):
         self.host = host
         self.paths = paths
         self.connection = connection
@@ -37,12 +38,10 @@ class HostTarget:
                 self.connection = None
                 print(f'Error logging into {self.host}: {e}')
 
-            print(f'Getting some share info')
-            listed_shares = self.connection.listShares()
-            print(f'Listed shares')
-            print(listed_shares)
-            for listed_share in listed_shares:
-                print(f'Share:\t{listed_share.shi1_netname}')
+    def expand_paths(self):
+        if '' in self.paths:
+            self.populate_shares()
+            self.paths.remove('')
 
     def populate_shares(self):
         # Make sure a connection has been made to the host
@@ -51,9 +50,21 @@ class HostTarget:
             return
         else:
             try:
-                return self.connection.listShares()
+                resp = self.connection.listShares()
             except Exception as e:
-                print(f'Error getting shares from {self.host}: {e}')
+                print(f'Failed to connect to get shares for host: {self.host}\n\t{e}')
+
+        shares = []
+        for share_info in range(len(resp)):
+            share_name = resp[share_info]['shi1_netname'][:-1]
+            share_type = resp[share_info]['shi1_type']
+
+            # Check that the share type supports treeconnect, i.e. not IPC$, etc.
+            if share_type & STYPE_MASK == STYPE_DISKTREE:
+                shares.append(share_name)
+
+        for share in shares:
+            self.add_path(share)
 
     def write_payload(self, path: str, payload_name: str, payload: bytes):
         share = path.split('\\')[0]
@@ -103,7 +114,6 @@ class HostTarget:
 
             return True
 
-
     def delete_payload(self, path: str, payload_name: str):
         share = path.split('\\')[0]
         folder = '\\'.join(path.split('\\')[1:])
@@ -117,7 +127,6 @@ class HostTarget:
                 self.connection.deleteFile(shareName=share, pathName=payload_path)
             except Exception as e:
                 print("Failed to delete payload: " + str(e))
-
 
     def review_all_folders(self, folder_rankings, active_threshold_date, depth, fast):
         if self.connection is None:
@@ -159,8 +168,17 @@ class HostTarget:
         share = path.split('\\')[0]
         folder = '\\'.join(path.split('\\')[1:])
 
+        try:
+            listings = self.connection.listPath(shareName=share, path=f'{folder}\\*')
+        except Exception as e:
+            unc_path = f'\\\\{self.host}\\{share}'
+            if folder != '':
+                unc_path = unc_path + f'\\{folder}'
+            unc_path = unc_path + '\\*'
+            print(f'Failed to review path: {unc_path}\n\t{e}')
+            return folder_rankings
 
-        for listing in self.connection.listPath(shareName=share, path=f'{folder}\\*'):
+        for listing in listings:
             reviewed = fast and ranking > 0 # Review completed if in fast and ranking is non-zero
             is_file = not listing.is_directory()
             name = listing.get_longname()

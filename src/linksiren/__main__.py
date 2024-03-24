@@ -193,9 +193,7 @@ def main():
         sorted_rankings = get_sorted_rankings(targets=targets, domain=domain, username=username, password=password,
                             active_threshold_date=threshold_date, max_depth=args.max_depth, go_fast=args.fast)
 
-        print(sorted_rankings)
         filtered_targets = filter_targets(targets, sorted_rankings, args.max_folders_per_target)
-        print(filtered_targets)
 
         # Write the highest ranked active shares to folder_targets.txt for review and deployment
         write_list_to_file(filtered_targets, 'folder_targets.txt')
