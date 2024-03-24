@@ -66,7 +66,6 @@ def read_targets(targets_file):
 
     return linksiren.pure_functions.process_targets(target_unc_paths)
 
-
 # Eventually we should just pass the whole parsed arguments structure to different functions
 # And then modify behaviors by checking options for things like active_threshold_date, max_depth
 # creds/ntlm hash, go_fast, etc.
@@ -102,6 +101,10 @@ def get_rankings(targets, domain, username, password, active_threshold_date, max
                 target.connect(user=username, password=password, domain=domain)
             except Exception as e:
                 print(f"Error connecting to {target.host}: {e}")
+
+        # Expand any empty paths for the target
+        # An empty path indicates all shares on the host should be targeted
+        target.expand_paths()
 
         try:
             # Call the appropriate review function based on the fast argument
