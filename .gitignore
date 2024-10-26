@@ -5,3 +5,5 @@ dist/
 temp/
 .coverage
 htmlcov/
+targets.txt
+Personal Notes.md
