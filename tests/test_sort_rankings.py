@@ -1,6 +1,3 @@
-# Test check for active files
-from datetime import datetime, timezone
-import pytest
 from linksiren.pure_functions import sort_rankings
 
 def test_empty():
