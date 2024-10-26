@@ -252,6 +252,16 @@ I'm looking to add the following features:
 - [ ] Add a progress bar for share crawling
 - [ ] Enable authentication using a NTLM hash
 - [ ] Enable ticket based authnentication (Kerberos)
+- [ ] Use impacket and add compatibility with relayed SMB connections
+    - Our attack would need to be added to [smbattack.py](https://github.com/fortra/impacket/blob/4a62f391cf2c5e60577e0138b01df4fec735d5ed/impacket/examples/ntlmrelayx/attacks/smbattack.py#L57) and would need to accept only an authenticated SMB connection.
+    - The authenticated SMB connection offers features to:
+        - Get the remote hostname with getRemoteHost() and getRemoteName()
+        - List shares via listShare()
+        - Connect to and disconnect from a share via connectTree() disconnectTree()
+        - List directory contents including access times and indicators of file vs directory via listPath() which handles automatically performing connect tree and disconnect tree.
+        - Note: While listing directory contents doesn't require manually creating a tree connection, creating, writing, and deleting a file does.
+        - Deploy a poisoned file via createFile() and writeFile()
+        - Cleanup a poisoned file via deleteFile()
 
 ## Note
 This tools is designed for ethical hacking and penetration testing. It should be used exclusively on networks where explicit, written permission has been granted for testing. I accept no responsibility for the safety or effectiveness of this tool. Please don't sue me.
