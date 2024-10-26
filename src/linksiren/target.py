@@ -30,6 +30,8 @@ class HostTarget:
                 self.connection = SMBConnection(remoteName=self.host, remoteHost=self.host)
             except SessionError as e:
                 print(f'Error connecting to {self.host}: {e}')
+                self.connection = None
+                return
 
             try:
                 self.connection.login(user, password, domain, lmhash, nthash, ntlmFallback)
@@ -51,8 +53,9 @@ class HostTarget:
         else:
             try:
                 resp = self.connection.listShares()
-            except Exception as e:
+            except SessionError as e:
                 print(f'Failed to connect to get shares for host: {self.host}\n\t{e}')
+                return
 
         shares = []
         for share_info in range(len(resp)):
@@ -110,7 +113,7 @@ class HostTarget:
                 self.connection.disconnectTree(tree_id)
             except Exception as e:
                 print("Failed to disconnect tree: " + str(e))
-                return False
+                return True
 
             return True
 
@@ -121,12 +124,14 @@ class HostTarget:
 
         if self.connection is None:
             print(f'Error: Not connected to {self.host}')
-            return
+            return False
         else:
             try:
                 self.connection.deleteFile(shareName=share, pathName=payload_path)
+                return True
             except Exception as e:
                 print("Failed to delete payload: " + str(e))
+                return False
 
     def review_all_folders(self, folder_rankings, active_threshold_date, depth, fast):
         if self.connection is None:
@@ -143,7 +148,8 @@ class HostTarget:
 
         :param dict folder_rankings: Dictionary of folder UNC paths and rankings reflecting the number
         of active files in the folder. {<folder UNC path>: <ranking>}
-        :param str path: UNC path for the current folder being reviewed
+        :param str path: Path to the folder being accessed, excluding the host name. For example, if the
+        folder is located at \\\\host\\share\\folder, then the path is 'share\\folder'.
         :param int active_threshold: Number of days within which file access constitutes a file being
         active
         :param int depth: Number of layers of folders to search. 1 searches only the specified folder
@@ -167,15 +173,12 @@ class HostTarget:
 
         share = path.split('\\')[0]
         folder = '\\'.join(path.split('\\')[1:])
+        unc_path = f'\\\\{self.host}\\{path}'
 
         try:
             listings = self.connection.listPath(shareName=share, path=f'{folder}\\*')
-        except Exception as e:
-            unc_path = f'\\\\{self.host}\\{share}'
-            if folder != '':
-                unc_path = unc_path + f'\\{folder}'
-            unc_path = unc_path + '\\*'
-            print(f'Failed to review path: {unc_path}\n\t{e}')
+        except SessionError as e:
+            print(f'Failed to review path: {unc_path}\\*\n\t{e}')
             return folder_rankings
 
         for listing in listings:
@@ -203,11 +206,9 @@ class HostTarget:
         # Update folder_rankings as each subfolder is reviewed.
         if not depth_reached:  # If the max depth has not been reached
             for subfolder in subfolders:
-                folder_rankings = {**folder_rankings, **self.review_folder(folder_rankings, subfolder,
-                                                                active_threshold_date, depth - 1, fast)}
-                # Requires python 3.9 or greater, commented for >= python 3.5 compatability
-                # folder_rankings = folder_rankings | self.review_folder(folder_rankings, subfolder,
-                #                                                  active_threshold_date, depth - 1, fast)
+                # Requires python 3.9 or greater
+                folder_rankings = folder_rankings | self.review_folder(folder_rankings, subfolder,
+                                                                       active_threshold_date, depth - 1, fast)
 
         # Update folder_rankings with the rank of the current folder and return it
         folder_rankings[f'\\\\{self.host}\\{path}'] = ranking

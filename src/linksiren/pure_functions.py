@@ -126,7 +126,7 @@ def filter_targets(targets, sorted_rankings, max_folders_per_target):
     :param dict sorted_rankings: A dictionary in the format {<folder UNC path>: <ranking>} sorted
     by ranking.
     :param int max_folders_per_target: Number of deployment targets to output per supplied
-    target share or folder.
+    target.
 
     :return: A list of UNC paths for payload deployemnt. This contains at most
     max_folders_per_target deployment targets for each supplied target share or folder.
@@ -139,16 +139,19 @@ def filter_targets(targets, sorted_rankings, max_folders_per_target):
 
     # For each share target in the list
     for target in targets:
-        for path in target.paths:
-            share = f'\\\\{target.host}\\{path.split("\\")[0]}'
-            # Filter the dictionary to only include keys that begin with the share target
-            matching_share_paths = [key for key in sorted_rankings.keys() if share == key or f'{share}\\' == key[:len(share)+1]]
+        # Get paths from sorted rankings associated with the target
+        matching_paths = [key for key in sorted_rankings.keys() if f'\\\\{target.host}\\' == key[:2+len(target.host)+1]]
 
-            # Sort the matching share paths based on their ranking and keep only the top N
-            top_matching_share_paths = sorted(matching_share_paths,
-                                            key=lambda key: sorted_rankings[key], reverse=True)[:max_folders_per_target]
+        # Sort the matching share paths based on their ranking in descending order
+        # and subsorted by key in alphabetical order. Keep only the top N.
+        sorted_matching_paths = sorted(
+            matching_paths,
+            key=lambda key: (-sorted_rankings[key], key)
+        )
 
-            # Update the sorted_rankings dictionary with the top N matching share paths
-            filtered_rankings.extend(top_matching_share_paths)
+        # Keep only the top N
+        top_matching_paths = sorted_matching_paths[:max_folders_per_target]
 
-    return filtered_rankings
+        filtered_rankings.extend(top_matching_paths)
+
+    return  sorted(filtered_rankings)

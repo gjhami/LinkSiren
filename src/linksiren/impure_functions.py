@@ -7,6 +7,7 @@ bulk cleanup multiple types of payloads from the identified locations.
 """
 from pathlib import Path
 import linksiren.pure_functions
+from impacket.smbconnection import SessionError
 
 def write_payload_local(payload_name, payload_contents):
     """
@@ -101,10 +102,15 @@ def get_rankings(targets, domain, username, password, active_threshold_date, max
                 target.connect(user=username, password=password, domain=domain)
             except Exception as e:
                 print(f"Error connecting to {target.host}: {e}")
+                return folder_rankings
 
         # Expand any empty paths for the target
         # An empty path indicates all shares on the host should be targeted
-        target.expand_paths()
+        try:
+            target.expand_paths()
+        except Exception as e:
+            print(f"Error expanding paths on {target.host}: {e}")
+            return folder_rankings
 
         try:
             # Call the appropriate review function based on the fast argument
