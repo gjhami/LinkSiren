@@ -5,6 +5,11 @@ def test_empty():
     expected_result = {}
     assert sort_rankings(folder_rankings) == expected_result
 
+def test_none():
+    folder_rankings = None
+    expected_result = {}
+    assert sort_rankings(folder_rankings) == expected_result
+
 def test_single():
     folder_rankings = {'Folder1': 10}
     expected_result = {'Folder1': 10}

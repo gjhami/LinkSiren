@@ -164,6 +164,18 @@ def test_write_payload_success(host_target):
     host_target.connection.disconnectTree.assert_called_once_with(tree_id)
     assert result is True
 
+def test_write_payload_no_folder(host_target):
+    path = "share"
+    payload_name = "payload.txt"
+    payload = b"test payload"
+
+    host_target.connection.connectTree.return_value = 1
+
+    result = host_target.write_payload(path, payload_name, payload)
+    host_target.connection.createFile.assert_called_once_with(1, payload_name)
+    assert result is True
+
+
 def test_write_payload_no_connection(host_target):
     host_target.connection = None
     result = host_target.write_payload("share\\folder", "payload.txt", b"test payload")
@@ -252,6 +264,13 @@ def test_write_payload_disconnect_tree_failure(host_target):
     host_target.connection.closeFile.assert_called_once_with(treeId=tree_id, fileId=file_handle)
     host_target.connection.disconnectTree.assert_called_once_with(tree_id)
     assert result is True
+
+def test_delete_payload_no_folder(host_target):
+    path = "share"
+    payload_name = "payload.txt"
+
+    result = host_target.delete_payload(path, payload_name)
+    host_target.connection.deleteFile.assert_called_once_with(shareName="share", pathName=payload_name)
 
 def test_delete_payload_success(host_target):
     path = "share\\folder"
