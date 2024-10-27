@@ -31,17 +31,17 @@ def parse_args():
     rank_parser.add_argument('-f', '--fast', action='store_true', default=False, help='(Default: False) Mark folders active as'
                         ' soon as one active file in them is identified and move on. Ranks are '
                         'all set to 1 assigned.')
-    rank_parser.add_argument('-hashes', action="store", metavar = "LMHASH:NTHASH", help='NTLM hashes, format is LMHASH:NTHASH')
-    rank_parser.add_argument('-no-pass', action="store_true", help='don\'t ask for password (useful for -k)')
-    rank_parser.add_argument('-k', action="store_true", help='Use Kerberos authentication. Grabs credentials from ccache file '
-                             '(KRB5CCNAME) based on target parameters. If valid credentials cannot be found, it will use'
-                             ' the ones specified in the command line')
-    rank_parser.add_argument('-aesKey', action="store", metavar = "hex key", help='AES key to use for Kerberos Authentication'
-                                                                            ' (128 or 256 bits)')
-    rank_parser.add_argument('-keytab', action="store", help='Read keys for SPN from keytab file')
-    rank_parser.add_argument_group('connection')
-    rank_parser.add_argument('-dc-ip', action='store',metavar = "ip address",  help='IP Address of the domain controller. If '
-                                 'ommited it use the domain part (FQDN) specified in the target parameter')
+    # rank_parser.add_argument('-hashes', action="store", metavar = "LMHASH:NTHASH", help='NTLM hashes, format is LMHASH:NTHASH')
+    # rank_parser.add_argument('-no-pass', action="store_true", help='don\'t ask for password (useful for -k)')
+    # rank_parser.add_argument('-k', action="store_true", help='Use Kerberos authentication. Grabs credentials from ccache file '
+    #                          '(KRB5CCNAME) based on target parameters. If valid credentials cannot be found, it will use'
+    #                          ' the ones specified in the command line')
+    # rank_parser.add_argument('-aesKey', action="store", metavar = "hex key", help='AES key to use for Kerberos Authentication'
+    #                                                                         ' (128 or 256 bits)')
+    # rank_parser.add_argument('-keytab', action="store", help='Read keys for SPN from keytab file')
+    # rank_parser.add_argument_group('connection')
+    # rank_parser.add_argument('-dc-ip', action='store',metavar = "ip address",  help='IP Address of the domain controller. If '
+    #                              'ommited it use the domain part (FQDN) specified in the target parameter')
 
     # Arguments for identifying and outputting UNC paths to optimal folders into which to place poisoned files
     identify_parser = subparsers.add_parser('identify', help='Identify target folders for payload distribution '
@@ -61,17 +61,17 @@ def parse_args():
     identify_parser.add_argument('-mf', '--max-folders-per-target', type=int, default=10, help='(Default: 10) Maximum number of '
                             'folders to output as deployment targets per supplied target share or '
                             'folder.')
-    identify_parser.add_argument('-hashes', action="store", metavar = "LMHASH:NTHASH", help='NTLM hashes, format is LMHASH:NTHASH')
-    identify_parser.add_argument('-no-pass', action="store_true", help='don\'t ask for password (useful for -k)')
-    identify_parser.add_argument('-k', action="store_true", help='Use Kerberos authentication. Grabs credentials from ccache file '
-                             '(KRB5CCNAME) based on target parameters. If valid credentials cannot be found, it will use'
-                             ' the ones specified in the command line')
-    identify_parser.add_argument('-aesKey', action="store", metavar = "hex key", help='AES key to use for Kerberos Authentication'
-                                                                            ' (128 or 256 bits)')
-    identify_parser.add_argument('-keytab', action="store", help='Read keys for SPN from keytab file')
-    identify_parser.add_argument_group('connection')
-    identify_parser.add_argument('-dc-ip', action='store',metavar = "ip address",  help='IP Address of the domain controller. If '
-                                 'ommited it use the domain part (FQDN) specified in the target parameter')
+    # identify_parser.add_argument('-hashes', action="store", metavar = "LMHASH:NTHASH", help='NTLM hashes, format is LMHASH:NTHASH')
+    # identify_parser.add_argument('-no-pass', action="store_true", help='don\'t ask for password (useful for -k)')
+    # identify_parser.add_argument('-k', action="store_true", help='Use Kerberos authentication. Grabs credentials from ccache file '
+    #                          '(KRB5CCNAME) based on target parameters. If valid credentials cannot be found, it will use'
+    #                          ' the ones specified in the command line')
+    # identify_parser.add_argument('-aesKey', action="store", metavar = "hex key", help='AES key to use for Kerberos Authentication'
+    #                                                                         ' (128 or 256 bits)')
+    # identify_parser.add_argument('-keytab', action="store", help='Read keys for SPN from keytab file')
+    # identify_parser.add_argument_group('connection')
+    # identify_parser.add_argument('-dc-ip', action='store',metavar = "ip address",  help='IP Address of the domain controller. If '
+    #                              'ommited it use the domain part (FQDN) specified in the target parameter')
 
     # Arguments for deploying poisoned files to specified locations
     deploy_parser = subparsers.add_parser('deploy', help='Deploy payloads to all folder UNC '
@@ -85,17 +85,17 @@ def parse_args():
                         'files.')
     deploy_parser.add_argument('-n', '--payload', default='@Test_Do_Not_Remove.searchConnector-ms', help='(Default: @Test_Do_Not_Remove.searchConnector-ms) Name '
                             'of payload file ending in .library-ms, .searchConnector-ms, .lnk, or .url')
-    deploy_parser.add_argument('-hashes', action="store", metavar = "LMHASH:NTHASH", help='NTLM hashes, format is LMHASH:NTHASH')
-    deploy_parser.add_argument('-no-pass', action="store_true", help='don\'t ask for password (useful for -k)')
-    deploy_parser.add_argument('-k', action="store_true", help='Use Kerberos authentication. Grabs credentials from ccache file '
-                             '(KRB5CCNAME) based on target parameters. If valid credentials cannot be found, it will use'
-                             ' the ones specified in the command line')
-    deploy_parser.add_argument('-aesKey', action="store", metavar = "hex key", help='AES key to use for Kerberos Authentication'
-                                                                            ' (128 or 256 bits)')
-    deploy_parser.add_argument('-keytab', action="store", help='Read keys for SPN from keytab file')
-    deploy_parser.add_argument_group('connection')
-    deploy_parser.add_argument('-dc-ip', action='store',metavar = "ip address",  help='IP Address of the domain controller. If '
-                                 'ommited it use the domain part (FQDN) specified in the target parameter')
+    # deploy_parser.add_argument('-hashes', action="store", metavar = "LMHASH:NTHASH", help='NTLM hashes, format is LMHASH:NTHASH')
+    # deploy_parser.add_argument('-no-pass', action="store_true", help='don\'t ask for password (useful for -k)')
+    # deploy_parser.add_argument('-k', action="store_true", help='Use Kerberos authentication. Grabs credentials from ccache file '
+    #                          '(KRB5CCNAME) based on target parameters. If valid credentials cannot be found, it will use'
+    #                          ' the ones specified in the command line')
+    # deploy_parser.add_argument('-aesKey', action="store", metavar = "hex key", help='AES key to use for Kerberos Authentication'
+    #                                                                         ' (128 or 256 bits)')
+    # deploy_parser.add_argument('-keytab', action="store", help='Read keys for SPN from keytab file')
+    # deploy_parser.add_argument_group('connection')
+    # deploy_parser.add_argument('-dc-ip', action='store',metavar = "ip address",  help='IP Address of the domain controller. If '
+    #                              'ommited it use the domain part (FQDN) specified in the target parameter')
 
     # Arguments for cleaning up deployed payloads when finished
     cleanup_parser = subparsers.add_parser('cleanup', help='Delete poisoned files from folder UNC paths'
@@ -107,17 +107,17 @@ def parse_args():
                          'files are located.')
     cleanup_parser.add_argument('-n', '--payload', default='@Test_Do_Not_Remove.searchConnector-ms', help='(Default: @Test_Do_Not_Remove.searchConnector-ms) Name '
                             'of payload file ending in .library-ms, .searchConnector-ms, .lnk, or .url')
-    cleanup_parser.add_argument('-hashes', action="store", metavar = "LMHASH:NTHASH", help='NTLM hashes, format is LMHASH:NTHASH')
-    cleanup_parser.add_argument('-no-pass', action="store_true", help='don\'t ask for password (useful for -k)')
-    cleanup_parser.add_argument('-k', action="store_true", help='Use Kerberos authentication. Grabs credentials from ccache file '
-                             '(KRB5CCNAME) based on target parameters. If valid credentials cannot be found, it will use'
-                             ' the ones specified in the command line')
-    cleanup_parser.add_argument('-aesKey', action="store", metavar = "hex key", help='AES key to use for Kerberos Authentication'
-                                                                            ' (128 or 256 bits)')
-    cleanup_parser.add_argument('-keytab', action="store", help='Read keys for SPN from keytab file')
-    cleanup_parser.add_argument_group('connection')
-    cleanup_parser.add_argument('-dc-ip', action='store',metavar = "ip address",  help='IP Address of the domain controller. If '
-                                 'ommited it use the domain part (FQDN) specified in the target parameter')
+    # cleanup_parser.add_argument('-hashes', action="store", metavar = "LMHASH:NTHASH", help='NTLM hashes, format is LMHASH:NTHASH')
+    # cleanup_parser.add_argument('-no-pass', action="store_true", help='don\'t ask for password (useful for -k)')
+    # cleanup_parser.add_argument('-k', action="store_true", help='Use Kerberos authentication. Grabs credentials from ccache file '
+    #                          '(KRB5CCNAME) based on target parameters. If valid credentials cannot be found, it will use'
+    #                          ' the ones specified in the command line')
+    # cleanup_parser.add_argument('-aesKey', action="store", metavar = "hex key", help='AES key to use for Kerberos Authentication'
+    #                                                                         ' (128 or 256 bits)')
+    # cleanup_parser.add_argument('-keytab', action="store", help='Read keys for SPN from keytab file')
+    # cleanup_parser.add_argument_group('connection')
+    # cleanup_parser.add_argument('-dc-ip', action='store',metavar = "ip address",  help='IP Address of the domain controller. If '
+    #                              'ommited it use the domain part (FQDN) specified in the target parameter')
 
     args = parser.parse_args()
 
