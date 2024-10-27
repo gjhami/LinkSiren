@@ -114,7 +114,10 @@ def is_active_file(threshold_date, access_time):
 
 
 def sort_rankings(folder_rankings):
-    sorted_rankings = dict(sorted(folder_rankings.items(), key=lambda item: item[1], reverse=True))
+    if folder_rankings is None:
+        sorted_rankings = {}
+    else:
+        sorted_rankings = dict(sorted(folder_rankings.items(), key=lambda item: item[1], reverse=True))
     return sorted_rankings
 
 
