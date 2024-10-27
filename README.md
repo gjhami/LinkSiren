@@ -245,6 +245,7 @@ I'm looking to add the following features:
 - [ ] Add a safe mode that checks if a file can be deleted from a target share before deploying it.
     - This can be accomplished by reviewing ACLs over SMB but is only useful if the SIDs in the ACLs can be mapped to the username used to connect to the share. WMI / RPC over SMB could be used to get SID information to map SIDs to usernames (definitely local, maybe also domain). Alternatively, LDAP could be queries for SID information associated with domain users in AD environments.
     - Alternatively, this could be accomplished by attempting to write a test file to the target directory and then delete it. This is what crackmapexec does.
+- [ ] Add an option for 'invisible' targets for .Library-ms and .searchConnector-ms files where the icon is set to blank and the name is set to a non-printing, valid ASCII character.
 - [ ] Add an instructions sections that details how to get intranet zoned (Blog Post In Progress)
 - [ ] Test for anonymous access to shares
 - [ ] Add an explanation of how this can be used with ntlmrelayx (Blog Post In Progress)
@@ -252,6 +253,10 @@ I'm looking to add the following features:
 - [ ] Add a progress bar for share crawling
 - [ ] Enable authentication using a NTLM hash
 - [ ] Enable ticket based authnentication (Kerberos)
+- [ ] Use a logging package (loguru) to vary output verbosity and log additional actions.
+    - [ ] Log all crawl, deployment, and cleanup actions as well as success / failure indicators with timestamps for posterity.
+    - [ ] Maintain a file that has payloads that still exist because errors (other than STATUS_OBJECT_NAME_NOT_FOUND) prevented payload deletion.
+- [ ] Add pydantic validation for arguments including targets and output file names.
 - [ ] Use impacket and add compatibility with relayed SMB connections
     - Our attack would need to be added to [smbattack.py](https://github.com/fortra/impacket/blob/4a62f391cf2c5e60577e0138b01df4fec735d5ed/impacket/examples/ntlmrelayx/attacks/smbattack.py#L57) and would need to accept only an authenticated SMB connection.
     - The authenticated SMB connection offers features to:
