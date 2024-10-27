@@ -72,7 +72,10 @@ class HostTarget:
     def write_payload(self, path: str, payload_name: str, payload: bytes):
         share = path.split('\\')[0]
         folder = '\\'.join(path.split('\\')[1:])
-        payload_path = f'{folder}\\{payload_name}'
+        if folder == '':  # If the folder is the root of the share
+            payload_path = payload_name
+        else:
+            payload_path = f'{folder}\\{payload_name}'
 
         # Make sure a connection has been made to the host
         if self.connection is None:
@@ -120,9 +123,13 @@ class HostTarget:
     def delete_payload(self, path: str, payload_name: str):
         share = path.split('\\')[0]
         folder = '\\'.join(path.split('\\')[1:])
-        payload_path = f'{folder}\\{payload_name}'
+        if folder == '':  # If the folder is the root of the share
+            payload_path = payload_name
+        else:
+            payload_path = f'{folder}\\{payload_name}'
 
         if self.connection is None:
+            print(f"Failed to delete payload: \\\\{self.host}\\{share}\\{payload_path}")
             print(f'Error: Not connected to {self.host}')
             return False
         else:
@@ -130,7 +137,8 @@ class HostTarget:
                 self.connection.deleteFile(shareName=share, pathName=payload_path)
                 return True
             except Exception as e:
-                print("Failed to delete payload: " + str(e))
+                print(f"Failed to delete payload: \\\\{self.host}\\{share}\\{payload_path}")
+                print(f'\tException: {e}')
                 return False
 
     def review_all_folders(self, folder_rankings, active_threshold_date, depth, fast):
