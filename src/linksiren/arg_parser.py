@@ -119,4 +119,10 @@ def parse_args():
     cleanup_parser.add_argument('-dc-ip', action='store',metavar = "ip address",  help='IP Address of the domain controller. If '
                                  'ommited it use the domain part (FQDN) specified in the target parameter')
 
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    if args.mode is None:
+        parser.print_help()
+        parser.exit()
+
+    return args
