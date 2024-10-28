@@ -1,14 +1,19 @@
 """
-This module contains unit tests for the `get_sorted_rankings` function from the `linksiren.impure_functions`
-module. The tests use the `pytest` framework and `unittest.mock` for mocking dependencies.
+This module contains unit tests for the `get_sorted_rankings` function from the
+`linksiren.impure_functions` module. The tests use the `pytest` framework and
+`unittest.mock` for mocking dependencies.
+
 Fixtures:
     target_mock: A fixture that returns a MagicMock object representing a target with no connection.
     targets_list: A fixture that returns a list containing the `target_mock`.
+
 Tests:
     test_get_sorted_rankings_no_connection: Tests `get_sorted_rankings` when there is no connection.
-    test_get_sorted_rankings_with_connection: Tests `get_sorted_rankings` when there is a connection.
-    test_get_sorted_rankings_expand_paths_failure: Tests `get_sorted_rankings` when `expand_paths` raises an exception.
-    test_get_sorted_rankings_review_all_folders_failure: Tests `get_sorted_rankings` when `review_all_folders` raises an exception.
+    test_get_sorted_rankings_with_connection: Tests `get_sorted_rankings` when there is a
+        connection.
+    test_get_sorted_rankings_expand_paths_failure: Tests `get_sorted_rankings` when `expand_paths`
+        raises an exception. test_get_sorted_rankings_review_all_folders_failure: Tests
+        `get_sorted_rankings` when `review_all_folders` raises an exception.
 """
 
 from unittest.mock import MagicMock, patch
@@ -178,14 +183,18 @@ def test_get_sorted_rankings_expand_paths_failure(targets_list):
 
 def test_get_sorted_rankings_review_all_folders_failure(targets_list):
     """
-    Test case for `get_sorted_rankings` function when `review_all_folders` method of the first target in the `targets_list` raises an exception.
-    This test ensures that when an exception is raised during the review of all folders, the `get_sorted_rankings` function handles it gracefully and returns an empty dictionary.
+    Test case for `get_sorted_rankings` function when `review_all_folders` method of the first
+    target in the `targets_list` raises an exception. This test ensures that when an exception
+    is raised during the review of all folders, the `get_sorted_rankings` function handles it
+    gracefully and returns an empty dictionary.
 
     Args:
-        targets_list (list): A list of target objects where the first target's `review_all_folders` method is mocked to raise an exception.
+        targets_list (list): A list of target objects where the first target's
+        `review_all_folders` method is mocked to raise an exception.
 
     Setup:
-        - Mocks the `review_all_folders` method of the first target in `targets_list` to raise an exception.
+        - Mocks the `review_all_folders` method of the first target in `targets_list` to raise
+          an exception.
         - Mocks the `sort_rankings` function to return an empty dictionary.
 
     Assertions:
@@ -215,5 +224,5 @@ def test_get_sorted_rankings_review_all_folders_failure(targets_list):
             max_depth,
             go_fast,
         )
-        assert result == {}
+        assert not result
         mock_sort_rankings.assert_called_once_with({})
