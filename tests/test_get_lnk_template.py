@@ -1,10 +1,26 @@
+"""
+Unit tests for the `get_lnk_template` function from the `linksiren.impure_functions` module.
+This module contains the following tests:
+- `test_get_lnk_template_success`: Tests that `get_lnk_template` successfully reads a vali
+                                   `.lnk` file.
+- `test_get_lnk_template_file_not_found`: Tests that `get_lnk_template` raises a `FileNotFoundError`
+    when the specified file does not exist.
+- `test_get_lnk_template_empty_file`: Tests that `get_lnk_template` returns an empty list when the
+    specified `.lnk` file is empty.
+- `test_get_lnk_template_binary_content`: Tests that `get_lnk_template` correctly reads binary
+                                          content from a `.lnk` file.
+Fixtures:
+- `lnk_template_path`: Creates a temporary `.lnk` file with dummy content for testing purposes.
+"""
 import pytest
 from pathlib import Path
 from linksiren.impure_functions import get_lnk_template
 
 @pytest.fixture
-def lnk_template_path(tmp_path):
-    template_path = tmp_path / "template.lnk"
+def lnk_template_path():
+    temp_path = Path("./temp")
+    temp_path.mkdir(parents=True, exist_ok=True)
+    template_path = temp_path / "template.lnk"
     with open(template_path, 'wb') as f:
         f.write(b"dummy lnk content")
     return template_path
