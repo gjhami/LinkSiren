@@ -30,7 +30,8 @@ class HostTarget:
     def __init__(self, host: str, paths: list[str] = None, connection: SMBConnection = None,
                  logged_in: bool = False):
         if paths is None:
-            self.paths = []
+            paths = []
+
         self.host = host
         self.paths = paths
         self.connection = connection
