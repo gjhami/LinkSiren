@@ -7,7 +7,6 @@ bulk cleanup multiple types of payloads from the identified locations.
 """
 from pathlib import Path
 import linksiren.pure_functions
-from impacket.smbconnection import SessionError
 
 def write_payload_local(payload_name, payload_contents):
     """
@@ -29,14 +28,16 @@ def write_payload_local(payload_name, payload_contents):
         try:  # Try to write the payload
             with open(payload_name, mode='wb') as payload_file:
                 payload_file.write(payload_contents)
-        except Exception as e:  # Print a message and don't track the folder if writing the payload to it fails
+        except Exception as e:
+            # Print a message and don't track the folder if writing the payload to it fails
             print(f'Failed to write payload at: {payload_name}\n{e}')
             return False
     else:
         try:  # Try to write the payload
-            with open(payload_name, mode='w', newline='\r\n') as payload_file:
+            with open(payload_name, mode='w', newline='\r\n', encoding='utf-8') as payload_file:
                 payload_file.write(payload_contents)
-        except Exception as e:  # Print a message and don't track the folder if writing the payload to it fails
+        except Exception as e:
+            # Print a message and don't track the folder if writing the payload to it fails
             print(f'Failed to write payload at: {payload_name}\n\t{e}')
             return False
 
@@ -114,17 +115,34 @@ def get_rankings(targets, domain, username, password, active_threshold_date, max
 
         try:
             # Call the appropriate review function based on the fast argument
-            folder_rankings = target.review_all_folders(folder_rankings, active_threshold_date, max_depth,
-                                            go_fast)
+            folder_rankings = target.review_all_folders(folder_rankings, active_threshold_date,
+                                                        max_depth, go_fast)
         except Exception as e:
             print(f"Error connecting to shares on {target.host}: {e}")
 
     return folder_rankings
 
 
-def get_sorted_rankings(targets, domain, username, password, active_threshold_date, max_depth, go_fast):
+def get_sorted_rankings(targets, domain, username, password, active_threshold_date,
+                        max_depth, go_fast):
+    """
+    Retrieve and sort rankings for given targets.
+    This function fetches the rankings for the specified folders and sorts them
+    based on their rankings.
+    Args:
+        targets (list): List of target folders to rank.
+        domain (str): Domain to authenticate against.
+        username (str): Username for authentication.
+        password (str): Password for authentication.
+        active_threshold_date (str): Date threshold to consider for active rankings.
+        max_depth (int): Maximum depth to search within folders.
+        go_fast (bool): Flag to enable faster processing.
+    Returns:
+        list: Sorted rankings of the folder UNC paths.
+    """
     # Get rankings for folders
-    folder_rankings = get_rankings(targets, domain, username, password, active_threshold_date, max_depth, go_fast)
+    folder_rankings = get_rankings(targets, domain, username, password, active_threshold_date,
+                                   max_depth, go_fast)
 
     # Sort the folder UNC paths by rankings
     sorted_rankings = linksiren.pure_functions.sort_rankings(folder_rankings)
@@ -148,6 +166,13 @@ def write_list_to_file(input_list, file_path, mode='w'):
 
 
 def get_lnk_template(template_path):
+    """
+    Reads a binary file from the given template path and returns its content as a list of bytes.
+    Args:
+        template_path (str): The path to the binary file to be read.
+    Returns:
+        list: A list of bytes representing the content of the binary file.
+    """
     with open(template_path, 'rb') as lnk:
         shortcut = list(lnk.read())
 
