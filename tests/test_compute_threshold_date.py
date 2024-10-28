@@ -15,9 +15,11 @@ Tests:
     test_negative_threshold: Tests the function with a negative threshold.
     test_valid_cases: Tests the function with a variety of valid test cases.
 """
+
 from datetime import datetime
 import pytest
 from linksiren.pure_functions import compute_threshold_date
+
 
 @pytest.fixture
 def valid_test_cases():
@@ -50,8 +52,9 @@ def valid_test_cases():
     return [
         (date_1, threshold_length_1, expected_threshold_date_1),
         (date_2, threshold_length_2, expected_threshold_date_2),
-        (date_3, threshold_length_3, expected_threshold_date_3)
+        (date_3, threshold_length_3, expected_threshold_date_3),
     ]
+
 
 def test_zero_threshold():
     """
@@ -72,6 +75,7 @@ def test_zero_threshold():
 
     assert compute_threshold_date(date, threshold) == expected_threshold_date
 
+
 def test_negative_threshold():
     """
     Test the compute_threshold_date function with a negative threshold.
@@ -89,6 +93,7 @@ def test_negative_threshold():
     expected_threshold_date = datetime(1990, 3, 11)
 
     assert compute_threshold_date(date, threshold) == expected_threshold_date
+
 
 def test_valid_cases(valid_test_cases):
     """

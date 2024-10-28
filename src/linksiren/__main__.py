@@ -1,4 +1,4 @@
-'''
+"""
 Author: George Hamilton
 Main module for the LinkSiren application.
 This module handles different modes of operation for the LinkSiren application. It parses
@@ -9,11 +9,18 @@ Functions:
     main(): Main function to handle different modes of operation for the LinkSiren application.
 Usage:
     Run this module as a script to execute the main function.
-'''
+"""
+
 from impacket.examples.utils import parse_credentials
 from linksiren.arg_parser import parse_args
-from linksiren.mode_handlers import handle_generate, handle_rank, handle_identify, \
-                                    handle_deploy, handle_cleanup
+from linksiren.mode_handlers import (
+    handle_generate,
+    handle_rank,
+    handle_identify,
+    handle_deploy,
+    handle_cleanup,
+)
+
 
 def main():
     """
@@ -33,21 +40,22 @@ def main():
         None
     """
     args = parse_args()
-    if 'credentials' in args:
+    if "credentials" in args:
         domain, username, password = parse_credentials(args.credentials)
     else:
-        domain, username, password = '', '', ''
+        domain, username, password = "", "", ""
 
-    if args.mode == 'generate':
+    if args.mode == "generate":
         handle_generate(args)
-    elif args.mode == 'rank':
+    elif args.mode == "rank":
         handle_rank(args, domain, username, password)
-    elif args.mode == 'identify':
+    elif args.mode == "identify":
         handle_identify(args, domain, username, password)
-    elif args.mode == 'deploy':
+    elif args.mode == "deploy":
         handle_deploy(args, domain, username, password)
-    elif args.mode == 'cleanup':
+    elif args.mode == "cleanup":
         handle_cleanup(args, domain, username, password)
+
 
 if __name__ == "__main__":
     main()

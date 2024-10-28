@@ -5,8 +5,10 @@ payloads that coerce authentication based on recent access. This module can then
 deploy multiple types of payloads to the identified locations. Lastly, this module can be used to
 bulk cleanup multiple types of payloads from the identified locations.
 """
+
 from pathlib import Path
 import linksiren.pure_functions
+
 
 def write_payload_local(payload_name, payload_contents):
     """
@@ -24,21 +26,23 @@ def write_payload_local(payload_name, payload_contents):
     """
     extension = Path(payload_name).suffix
 
-    if extension == '.lnk':
+    if extension == ".lnk":
         try:  # Try to write the payload
-            with open(payload_name, mode='wb') as payload_file:
+            with open(payload_name, mode="wb") as payload_file:
                 payload_file.write(payload_contents)
         except Exception as e:
             # Print a message and don't track the folder if writing the payload to it fails
-            print(f'Failed to write payload at: {payload_name}\n{e}')
+            print(f"Failed to write payload at: {payload_name}\n{e}")
             return False
     else:
         try:  # Try to write the payload
-            with open(payload_name, mode='w', newline='\r\n', encoding='utf-8') as payload_file:
+            with open(
+                payload_name, mode="w", newline="\r\n", encoding="utf-8"
+            ) as payload_file:
                 payload_file.write(payload_contents)
         except Exception as e:
             # Print a message and don't track the folder if writing the payload to it fails
-            print(f'Failed to write payload at: {payload_name}\n\t{e}')
+            print(f"Failed to write payload at: {payload_name}\n\t{e}")
             return False
 
     # If writing the payload doesn't fail, then return True
@@ -60,18 +64,23 @@ def read_targets(targets_file):
 
     # Read share targets into an array
     try:
-        with open(targets_file, 'r', encoding="utf-8") as file:
+        with open(targets_file, "r", encoding="utf-8") as file:
             target_unc_paths = file.read().splitlines()
     except Exception as e:
-        print('Error opening targets file. Make sure it exists and review its permissions.')
+        print(
+            "Error opening targets file. Make sure it exists and review its permissions."
+        )
         print(e)
 
     return linksiren.pure_functions.process_targets(target_unc_paths)
 
+
 # Eventually we should just pass the whole parsed arguments structure to different functions
 # And then modify behaviors by checking options for things like active_threshold_date, max_depth
 # creds/ntlm hash, go_fast, etc.
-def get_rankings(targets, domain, username, password, active_threshold_date, max_depth, go_fast):
+def get_rankings(
+    targets, domain, username, password, active_threshold_date, max_depth, go_fast
+):
     """
     get_sorted_rankings(targets, active_threshold, max_depth, go_fast)
 
@@ -115,16 +124,18 @@ def get_rankings(targets, domain, username, password, active_threshold_date, max
 
         try:
             # Call the appropriate review function based on the fast argument
-            folder_rankings = target.review_all_folders(folder_rankings, active_threshold_date,
-                                                        max_depth, go_fast)
+            folder_rankings = target.review_all_folders(
+                folder_rankings, active_threshold_date, max_depth, go_fast
+            )
         except Exception as e:
             print(f"Error connecting to shares on {target.host}: {e}")
 
     return folder_rankings
 
 
-def get_sorted_rankings(targets, domain, username, password, active_threshold_date,
-                        max_depth, go_fast):
+def get_sorted_rankings(
+    targets, domain, username, password, active_threshold_date, max_depth, go_fast
+):
     """
     Retrieve and sort rankings for given targets.
     This function fetches the rankings for the specified folders and sorts them
@@ -141,15 +152,16 @@ def get_sorted_rankings(targets, domain, username, password, active_threshold_da
         list: Sorted rankings of the folder UNC paths.
     """
     # Get rankings for folders
-    folder_rankings = get_rankings(targets, domain, username, password, active_threshold_date,
-                                   max_depth, go_fast)
+    folder_rankings = get_rankings(
+        targets, domain, username, password, active_threshold_date, max_depth, go_fast
+    )
 
     # Sort the folder UNC paths by rankings
     sorted_rankings = linksiren.pure_functions.sort_rankings(folder_rankings)
     return sorted_rankings
 
 
-def write_list_to_file(input_list, file_path, mode='w'):
+def write_list_to_file(input_list, file_path, mode="w"):
     """
     write_list_to_file(list, file_path)
 
@@ -162,7 +174,7 @@ def write_list_to_file(input_list, file_path, mode='w'):
     """
     with open(file_path, mode=mode, encoding="utf-8") as f:
         for item in input_list:
-            f.write(item + '\n')
+            f.write(item + "\n")
 
 
 def get_lnk_template(template_path):
@@ -173,7 +185,7 @@ def get_lnk_template(template_path):
     Returns:
         list: A list of bytes representing the content of the binary file.
     """
-    with open(template_path, 'rb') as lnk:
+    with open(template_path, "rb") as lnk:
         shortcut = list(lnk.read())
 
     return shortcut

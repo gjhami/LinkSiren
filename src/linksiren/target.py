@@ -16,19 +16,27 @@ Usage Example:
                             active_threshold_date=1625097600, \
                             depth=2, fast=True)
 """
+
 from impacket.smbconnection import SMBConnection, SessionError
 from impacket.dcerpc.v5.srvs import STYPE_DISKTREE, STYPE_MASK
 import linksiren.pure_functions
 
+
 class HostTarget:
-    '''
+    """
     Class to represent a target host and its shares
 
     Attributes:
     host: str - the hostname or IP address of the target
-    '''
-    def __init__(self, host: str, paths: list[str] = None, connection: SMBConnection = None,
-                 logged_in: bool = False):
+    """
+
+    def __init__(
+        self,
+        host: str,
+        paths: list[str] = None,
+        connection: SMBConnection = None,
+        logged_in: bool = False,
+    ):
         if paths is None:
             paths = []
 
@@ -52,8 +60,9 @@ class HostTarget:
             self.paths.append(path)
 
     # Impure functions
-    def connect(self, user='', password='', domain = '', lmhash = '', nthash = '',
-                ntlmFallback = True):
+    def connect(
+        self, user="", password="", domain="", lmhash="", nthash="", ntlmFallback=True
+    ):
         """
         Establishes a connection to the SMB server and logs in with the provided credentials.
 
@@ -73,18 +82,22 @@ class HostTarget:
         """
         if self.connection is None:
             try:
-                self.connection = SMBConnection(remoteName=self.host, remoteHost=self.host)
+                self.connection = SMBConnection(
+                    remoteName=self.host, remoteHost=self.host
+                )
             except SessionError as e:
-                print(f'Error connecting to {self.host}: {e}')
+                print(f"Error connecting to {self.host}: {e}")
                 self.connection = None
                 return
 
             try:
-                self.connection.login(user, password, domain, lmhash, nthash, ntlmFallback)
+                self.connection.login(
+                    user, password, domain, lmhash, nthash, ntlmFallback
+                )
                 self.logged_in = True
             except SessionError as e:
                 self.connection = None
-                print(f'Error logging into {self.host}: {e}')
+                print(f"Error logging into {self.host}: {e}")
 
     def expand_paths(self):
         """
@@ -94,9 +107,9 @@ class HostTarget:
         the `populate_shares` method to populate the shares and then removes the empty string from
         the `paths` list.
         """
-        if '' in self.paths:
+        if "" in self.paths:
             self.populate_shares()
-            self.paths.remove('')
+            self.paths.remove("")
 
     def populate_shares(self):
         """
@@ -118,19 +131,19 @@ class HostTarget:
         """
         # Make sure a connection has been made to the host
         if self.connection is None:
-            print(f'Error: Not connected to {self.host}')
+            print(f"Error: Not connected to {self.host}")
             return
 
         try:
             resp = self.connection.listShares()
         except SessionError as e:
-            print(f'Failed to connect to get shares for host: {self.host}\n\t{e}')
+            print(f"Failed to connect to get shares for host: {self.host}\n\t{e}")
             return
 
         shares = []
         for share_info in resp:
-            share_name = share_info['shi1_netname'][:-1]
-            share_type = share_info['shi1_type']
+            share_name = share_info["shi1_netname"][:-1]
+            share_type = share_info["shi1_type"]
 
             # Check that the share type supports treeconnect, i.e. not IPC$, etc.
             if share_type & STYPE_MASK == STYPE_DISKTREE:
@@ -162,16 +175,16 @@ class HostTarget:
             - The method handles exceptions internally and prints error messages for debugging
                 purposes.
         """
-        share = path.split('\\')[0]
-        folder = '\\'.join(path.split('\\')[1:])
-        if folder == '':  # If the folder is the root of the share
+        share = path.split("\\")[0]
+        folder = "\\".join(path.split("\\")[1:])
+        if folder == "":  # If the folder is the root of the share
             payload_path = payload_name
         else:
-            payload_path = f'{folder}\\{payload_name}'
+            payload_path = f"{folder}\\{payload_name}"
 
         # Make sure a connection has been made to the host
         if self.connection is None:
-            print(f'Error: Not connected to {self.host}')
+            print(f"Error: Not connected to {self.host}")
             return
 
         # Try to create a Tree connection to the share
@@ -186,7 +199,7 @@ class HostTarget:
             file_handle = self.connection.createFile(tree_id, payload_path)
         except Exception as e:
             print("Failed to create payload file: " + str(e))
-            print(f'\tPath: {path}\tPayload: {payload_name}')
+            print(f"\tPath: {path}\tPayload: {payload_name}")
             return False
 
         # Try to write to the file
@@ -231,16 +244,16 @@ class HostTarget:
             - If the connection is not established, the method will print an error message and
                 return False.
         """
-        share = path.split('\\')[0]
-        folder = '\\'.join(path.split('\\')[1:])
-        if folder == '':  # If the folder is the root of the share
+        share = path.split("\\")[0]
+        folder = "\\".join(path.split("\\")[1:])
+        if folder == "":  # If the folder is the root of the share
             payload_path = payload_name
         else:
-            payload_path = f'{folder}\\{payload_name}'
+            payload_path = f"{folder}\\{payload_name}"
 
         if self.connection is None:
             print(f"Failed to delete payload: \\\\{self.host}\\{share}\\{payload_path}")
-            print(f'Error: Not connected to {self.host}')
+            print(f"Error: Not connected to {self.host}")
             return False
 
         try:
@@ -248,7 +261,7 @@ class HostTarget:
             return True
         except Exception as e:
             print(f"Failed to delete payload: \\\\{self.host}\\{share}\\{payload_path}")
-            print(f'\tException: {e}')
+            print(f"\tException: {e}")
             return False
 
     def review_all_folders(self, folder_rankings, active_threshold_date, depth, fast):
@@ -269,13 +282,16 @@ class HostTarget:
         dict: Updated folder rankings after reviewing all folders.
         """
         if self.connection is None:
-            print(f'Error: Not connected to {self.host}')
+            print(f"Error: Not connected to {self.host}")
             return
         else:
             for folder in self.paths:
-                folder_rankings = {**folder_rankings,
-                                   **self.review_folder(folder_rankings, folder,
-                                                        active_threshold_date, depth, fast)}
+                folder_rankings = {
+                    **folder_rankings,
+                    **self.review_folder(
+                        folder_rankings, folder, active_threshold_date, depth, fast
+                    ),
+                }
             return folder_rankings
 
     def review_folder(self, folder_rankings, path, active_threshold_date, depth, fast):
@@ -307,18 +323,20 @@ class HostTarget:
         reviewed = False
         depth_reached = depth <= 1
 
-        share = path.split('\\')[0]
-        folder = '\\'.join(path.split('\\')[1:])
-        unc_path = f'\\\\{self.host}\\{path}'
+        share = path.split("\\")[0]
+        folder = "\\".join(path.split("\\")[1:])
+        unc_path = f"\\\\{self.host}\\{path}"
 
         try:
-            listings = self.connection.listPath(shareName=share, path=f'{folder}\\*')
+            listings = self.connection.listPath(shareName=share, path=f"{folder}\\*")
         except SessionError as e:
-            print(f'Failed to review path: {unc_path}\\*\n\t{e}')
+            print(f"Failed to review path: {unc_path}\\*\n\t{e}")
             return folder_rankings
 
         for listing in listings:
-            reviewed = fast and ranking > 0 # Review completed if in fast and ranking is non-zero
+            reviewed = (
+                fast and ranking > 0
+            )  # Review completed if in fast and ranking is non-zero
             is_file = not listing.is_directory()
             name = listing.get_longname()
 
@@ -327,19 +345,26 @@ class HostTarget:
                 break  # Stop reviewing items in the folder
 
             # For active files in the directory when the review is not yet completed
-            elif not reviewed and is_file and \
-                linksiren.pure_functions.is_active_file(access_time=listing.get_atime_epoch(), \
-                                                        threshold_date=active_threshold_date):
-                ranking += 1 # Increment the folder ranking
+            elif (
+                not reviewed
+                and is_file
+                and linksiren.pure_functions.is_active_file(
+                    access_time=listing.get_atime_epoch(),
+                    threshold_date=active_threshold_date,
+                )
+            ):
+                ranking += 1  # Increment the folder ranking
 
             # For subfolders in the directory
-            elif not (is_file or depth_reached or name == '.' or name == '..'):
+            elif not (is_file or depth_reached or name == "." or name == ".."):
                 # If max depth is not reached
-                if folder == '':
-                    subfolder_path = f'{share}\\{name}'
+                if folder == "":
+                    subfolder_path = f"{share}\\{name}"
                 else:
-                    subfolder_path = f'{share}\\{folder}\\{name}'
-                subfolders.append(f'{subfolder_path}') # Add the subfolder to the list of folders
+                    subfolder_path = f"{share}\\{folder}\\{name}"
+                subfolders.append(
+                    f"{subfolder_path}"
+                )  # Add the subfolder to the list of folders
 
         # Recursion: Call this function on all subfolders to review them if\
         # max depth is not reached.
@@ -347,10 +372,10 @@ class HostTarget:
         if not depth_reached:  # If the max depth has not been reached
             for subfolder in subfolders:
                 # Requires python 3.9 or greater
-                folder_rankings = folder_rankings | self.review_folder(folder_rankings, subfolder,
-                                                                       active_threshold_date,
-                                                                       depth - 1, fast)
+                folder_rankings = folder_rankings | self.review_folder(
+                    folder_rankings, subfolder, active_threshold_date, depth - 1, fast
+                )
 
         # Update folder_rankings with the rank of the current folder and return it
-        folder_rankings[f'\\\\{self.host}\\{path}'] = ranking
+        folder_rankings[f"\\\\{self.host}\\{path}"] = ranking
         return folder_rankings
