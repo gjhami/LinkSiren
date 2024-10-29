@@ -13,6 +13,7 @@ including:
 Each test function initializes a dictionary of folder rankings, defines the expected result, and
 asserts that the output of `sort_rankings` matches the expected result.
 """
+
 from linksiren.pure_functions import sort_rankings
 
 

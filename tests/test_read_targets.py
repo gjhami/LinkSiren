@@ -8,6 +8,7 @@ These tests cover the following scenarios:
 Each test uses the `unittest.mock` library to mock file operations and the `process_targets`
 function from the `linksiren.pure_functions` module.
 """
+
 from unittest.mock import patch, mock_open
 from linksiren.impure_functions import read_targets
 

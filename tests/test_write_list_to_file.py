@@ -11,6 +11,7 @@ The tests cover the following scenarios:
 The tests use the `pytest` framework and a temporary file fixture to ensure isolation and avoid
 side effects.
 """
+
 import pytest
 from linksiren.impure_functions import write_list_to_file
 

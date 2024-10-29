@@ -18,6 +18,7 @@ Test Cases:
         invalid.
     - test_valid_extensions: Verifies that names with valid extensions are considered valid.
 """
+
 import pytest
 from linksiren.pure_functions import is_valid_payload_name
 
