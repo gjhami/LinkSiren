@@ -191,7 +191,7 @@ class HostTarget:
         try:
             tree_id = self.connection.connectTree(share=share)
         except Exception as e:
-            print("Failed to connect to share: " + str(e))
+            print(f"Failed to connect to \\\\{self.host}\\{share}: " + str(e))
             return False
 
         # Try to open a file for writing
