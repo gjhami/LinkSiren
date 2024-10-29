@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "linksiren"
-version = "0.0.1"
+version = "0.0.2"
 description = "Generation, targeted deployment, and scalable cleanup for files that coerce Windows authentication."
 readme = "README.md"
 authors = [{ name = "George Hamilton"}]
@@ -18,12 +18,12 @@ classifiers = [
 ]
 keywords = ["coerce", "pentest", "windows", "authentication", "coercion"]
 dependencies = [
-    "smbprotocol>=1.12.0",
+    "impacket>=0.11.0",
 ]
 requires-python = ">=3.9"
 
 [project.optional-dependencies]
-dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
+dev = ["black", "bumpver", "isort", "pip-tools", "pytest", "coverage", "ruff"]
 
 [project.urls]
 Homepage = "https://github.com/gjhami/LinkSiren"
