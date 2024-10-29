@@ -17,6 +17,7 @@ Tests:
     test_process_targets_duplicate_paths: Verifies that `process_targets` correctly handles
         duplicate UNC paths.
 """
+
 import pytest
 from linksiren.target import HostTarget
 from linksiren.pure_functions import process_targets

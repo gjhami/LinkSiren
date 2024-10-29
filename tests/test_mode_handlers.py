@@ -42,6 +42,7 @@ Test Functions:
     test_handle_cleanup_no_targets(args, domain, username, password):
         Tests the handle_cleanup function when there are no targets.
 """
+
 from unittest.mock import MagicMock, patch
 from pathlib import Path
 import pytest

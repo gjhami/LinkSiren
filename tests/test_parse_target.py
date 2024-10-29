@@ -13,6 +13,7 @@ Test Cases:
 - `test_parse_target_empty_path`: Tests parsing a UNC path with an empty path.
 - `test_parse_target_no_share`: Tests parsing a UNC path with no share specified.
 """
+
 from linksiren.pure_functions import parse_target
 
 

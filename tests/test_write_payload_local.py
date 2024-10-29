@@ -22,6 +22,7 @@ Test Functions:
 - `test_write_payload_local_lnk_failure`: Tests failure to write a binary payload to a .lnk file
     due to an exception.
 """
+
 import pytest
 from linksiren.impure_functions import write_payload_local
 
@@ -117,6 +118,7 @@ def test_write_payload_local_txt_failure(
         monkeypatch (pytest.MonkeyPatch): A pytest fixture for safely patching and restoring
             objects.
     """
+
     def mock_open(*args, **kwargs):
         raise Exception("Mocked exception")
 
@@ -145,6 +147,7 @@ def test_write_payload_local_lnk_failure(
         bool: The function should return `False` indicating failure.
         bool: The payload file should not exist.
     """
+
     def mock_open(*args, **kwargs):
         raise Exception("Mocked exception")
 
