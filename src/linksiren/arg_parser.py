@@ -41,7 +41,7 @@ def parse_args():
     # Arguments for generating a payload locally
     generate_parser = subparsers.add_parser(
         "generate",
-        help="Output specified payload file"
+        help="Output specified payload file "
         "to the current directory instead of a remote location.",
     )
     generate_required_group = generate_parser.add_argument_group("Required Arguments")
