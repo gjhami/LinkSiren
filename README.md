@@ -49,9 +49,11 @@ linksiren cleanup --targets payloads_written.txt [domain]/username[:password]
 
 # How do I use this the \~right\~ way?
 1. Create a targets file for crawling containing accessible hosts, shares, or folders on each line in the following format. If a host is specified, shares will be identified on the host and treated as the next level of depth for crawling:
-`\\server1.domain.tld\`
-`\\server2.domain.tld\share1`
-`\\server3.domain.tld\share2\folder1\subfolder1`
+```
+\\server1.domain.tld\
+\\server2.domain.tld\share1
+\\server3.domain.tld\share2\folder1\subfolder1
+```
 
 2. Use LinkSiren to crawl the provided paths to the specified depth, searching for the ideal location to place a file that will coerce authentication. Resulting UNC paths are saved in `folder_targets.txt` in the current directory.
 ```bash
