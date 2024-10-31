@@ -1,4 +1,9 @@
-# Description
+# LinkSiren
+
+[![Latest Version](https://img.shields.io/pypi/v/LinkSiren.svg)](https://pypi.python.org/pypi/LinkSiren/)
+[![Python Versions](https://img.shields.io/badge/python-3.9%2B%20%7C%20PyPy-blue.svg)](https://pypi.org/project/linksiren/)
+[![GitHub License](https://img.shields.io/github/license/gjhami/LinkSiren)](https://github.com/gjhami/LinkSiren/blob/main/LICENSE)
+
 _The Siren waits thee, singing song for song._ - Walter Savage Landor
 
 LinkSiren distributes .library-ms, .searchConnector-ms, .url, and .lnk files to accessible file shares to coerce NetNTLM and Kerberos authentication over SMB and HTTP from hosts that open them. It's like [Farmer](https://github.com/mdsecactivebreach/Farmer/tree/1f37598125a92c9edf41295c6c1b7c258143968d), [Lnkbomb](https://github.com/dievus/lnkbomb), or [Slinky](https://www.infosecmatter.com/crackmapexec-module-library/?cmem=smb-slinky) but it identifies the best place to put the files for coercion and has scalable deployment and cleanup built in.
@@ -6,10 +11,6 @@ LinkSiren distributes .library-ms, .searchConnector-ms, .url, and .lnk files to 
 # Installation
 Using pipx (Recommended)
 ```
-# Install pipx if necessary
-python3 -m pip install pipx
-pipx ensurepath
-
 # Install linksiren
 pipx install linksiren
 ```
