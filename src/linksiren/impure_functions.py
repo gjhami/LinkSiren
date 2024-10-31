@@ -7,7 +7,10 @@ bulk cleanup multiple types of payloads from the identified locations.
 """
 
 from pathlib import Path
+from multiprocessing import Pool
+from functools import partial
 import linksiren.pure_functions
+from tqdm import tqdm
 
 
 def write_payload_local(payload_name, payload_contents):
@@ -75,6 +78,37 @@ def read_targets(targets_file):
     return linksiren.pure_functions.process_targets(target_unc_paths)
 
 
+def get_rankings_for_target(
+    target, domain, username, password, active_threshold_date, max_depth, go_fast
+):
+    folder_rankings = {}
+
+    if target.connection is None:
+        try:
+            target.connect(user=username, password=password, domain=domain)
+        except Exception as e:
+            print(f"Error connecting to {target.host}: {e}")
+            return folder_rankings
+
+    # Expand any empty paths for the target
+    # An empty path indicates all shares on the host should be targeted
+    try:
+        target.expand_paths()
+    except Exception as e:
+        print(f"Error expanding paths on {target.host}: {e}")
+        return folder_rankings
+
+    try:
+        # Call the appropriate review function based on the fast argument
+        folder_rankings = target.review_all_folders(
+            folder_rankings, active_threshold_date, max_depth, go_fast
+        )
+    except Exception as e:
+        print(f"Error connecting to shares on {target.host}: {e}")
+
+    return folder_rankings
+
+
 # Eventually we should just pass the whole parsed arguments structure to different functions
 # And then modify behaviors by checking options for things like active_threshold_date, max_depth
 # creds/ntlm hash, go_fast, etc.
@@ -82,53 +116,53 @@ def get_rankings(
     targets, domain, username, password, active_threshold_date, max_depth, go_fast
 ):
     """
-    get_sorted_rankings(targets, active_threshold, max_depth, go_fast)
+    get_rankings(targets, domain, username, password, active_threshold_date, max_depth, go_fast)
 
-    :param list targets: List of UNC paths to shares and base directories to review.
-    :param int active_threshold: Number of days within which file access constitutes a file being
-    active
+    :param str domain: Domain for authentication.
+    :param str username: Username for authentication.
+    :param str password: Password for authentication.
+    :param datetime active_threshold_date: Date threshold to determine if a file is active.
+    dictionary of UNC paths and associated rankings. Catches exceptions for failed smb connections
     :param int max_depth: Number of layers of folders to search. 1 searches only the specified
     target UNC paths and none of their subfolders.
     :param bool go_fast: If True, folders will be marked as active as soon as a single file is
     meeting the active_threshold criteria is found. A rank of 1 will be assigned to all active
     folders.
 
-    :return: A dictionary in the format {<folder UNC path>: <ranking>} sorted by ranking
+    :return: A dictionary in the format {<folder UNC path>: <ranking>}
 
-    Accepts a list of UNC paths to file shares and base directories. Gets the ranking associated
-    with each folder based on the number of files active within the active_threshold number of days.
+    Accepts a list of UNC target objects. Gets rankings associated with each path associated with
+    each target based on the number of files active within the active_threshold number of days.
     Recursively assigns ranking to subfolders up to max_depth. If go_fast is enabled, assigns the
     rank of 1 to all folders with a single active file and moves on to the next folder. Returns a
     dirctionary of UNC paths and associated rankings. Catches exceptions for failed smb connections
     and prints a message describing the error.
     """
     # Track rankings for each folder, which are (counterintuitively) scores corresponding to the
-    # number of active files in a folder. {<folder UNC path>: <ranking>}
+    # number of active files in a folder. So a higher ranking is a better target.
+    # {<folder UNC path>: <ranking>}
     folder_rankings = {}
 
-    for target in targets:
-        if target.connection is None:
-            try:
-                target.connect(user=username, password=password, domain=domain)
-            except Exception as e:
-                print(f"Error connecting to {target.host}: {e}")
-                return folder_rankings
+    worker_partial = partial(
+        get_rankings_for_target,
+        domain=domain,
+        username=username,
+        password=password,
+        active_threshold_date=active_threshold_date,
+        max_depth=max_depth,
+        go_fast=go_fast,
+    )
 
-        # Expand any empty paths for the target
-        # An empty path indicates all shares on the host should be targeted
-        try:
-            target.expand_paths()
-        except Exception as e:
-            print(f"Error expanding paths on {target.host}: {e}")
-            return folder_rankings
+    with Pool(processes=2) as pool:
+        for result in tqdm(
+            pool.imap_unordered(func=worker_partial, iterable=targets),
+            total=len(targets),
+        ):
+            if result is not None:
+                folder_rankings.update(result)
 
-        try:
-            # Call the appropriate review function based on the fast argument
-            folder_rankings = target.review_all_folders(
-                folder_rankings, active_threshold_date, max_depth, go_fast
-            )
-        except Exception as e:
-            print(f"Error connecting to shares on {target.host}: {e}")
+        pool.close()
+        pool.join()
 
     return folder_rankings
 
