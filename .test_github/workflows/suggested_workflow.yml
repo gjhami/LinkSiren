@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'  # Specify the Python version you need
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install ruff black pytest pytest-cov build twine
+
+    - name: Lint with ruff
+      run: |
+        ruff check . --fix
+
+    - name: Format with black
+      run: |
+        black .
+
+    - name: Build package
+      run: python -m build
+
+    - name: Run tests with coverage
+      run: |
+        python -m pytest tests --cov=linksiren --cov-report=html
+
+    - name: Publish to PyPI
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      env:
+        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      run: |
+        twine check dist/*
+        twine upload dist/*
