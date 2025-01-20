@@ -95,7 +95,7 @@ linksiren cleanup [domain]/username[:password]
 1. (Optional) Get Intranet-Zoned if you want to coerce HTTP authentication. See the note in [theHackerRecipes WebClient Abuse](https://www.thehacker.recipes/a-d/movement/mitm-and-coerced-authentications/webclient#abuse) and my blog post [DNS Hijacking: Say My Name](https://alittleinsecure.com/dns-hijacking-say-my-name/).
 2. Create a list of UNC paths to writeable SMB shares.
     - Note: You may also just provide a list of hosts (ex. `\\<host>`). Linksiren will list the shares on the host and add the base folder of each share as a target.
-    - Note: Consider write and delete privileges are distinct on Windows. It is possible you can create a poisoned file but will not have permissions to delete it. If this happens, LinkSiren will be very verbose in letting you know.
+    - Note: Consider write and delete privileges are distinct on Windows. It is possible you can create a poisoned file but will not have permissions to delete it. If LinkSiren is unable to cleanup a payload it deplyed, then it will be very verbose in letting you know.
 3. [Optional] Run LinkSiren in `generate` mode to write templates locally
 4. [Optional] Run LinkSiren in `rank` mode to output rankings for accessible folders based on recent access.
 5. Run LinkSiren in `identify` mode to find the best places to put poisoned files.
