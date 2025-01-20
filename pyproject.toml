@@ -1,12 +1,12 @@
 # pyproject.toml
 
 [build-system]
-requires = ["setuptools>=61.0.0", "wheel"]
+requires = ["setuptools>=75.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "linksiren"
-version = "0.0.2"
+version = "0.0.4"
 description = "Generation, targeted deployment, and scalable cleanup for files that coerce Windows authentication."
 readme = "README.md"
 authors = [{ name = "George Hamilton"}]
