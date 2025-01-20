@@ -5,5 +5,12 @@ dist/
 temp/
 .coverage
 htmlcov/
-targets.txt
+
 Personal Notes.md
+
+targets.txt
+folder_rankings.txt
+payload_targets.txt
+payloads_written.txt
+payloads_not_deleted.txt
+linksiren.log

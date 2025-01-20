@@ -548,15 +548,11 @@ def test_write_payload_success(host_target):
     result = host_target.write_payload(path, payload_name, payload)
 
     host_target.connection.connectTree.assert_called_once_with(share="share")
-    host_target.connection.createFile.assert_called_once_with(
-        tree_id, "folder\\payload.txt"
-    )
+    host_target.connection.createFile.assert_called_once_with(tree_id, "folder\\payload.txt")
     host_target.connection.writeFile.assert_called_once_with(
         treeId=tree_id, fileId=file_handle, data=payload
     )
-    host_target.connection.closeFile.assert_called_once_with(
-        treeId=tree_id, fileId=file_handle
-    )
+    host_target.connection.closeFile.assert_called_once_with(treeId=tree_id, fileId=file_handle)
     host_target.connection.disconnectTree.assert_called_once_with(tree_id)
     assert result is True
 
@@ -621,9 +617,7 @@ def test_write_payload_connect_tree_failure(host_target):
     payload_name = "payload.txt"
     payload = b"test payload"
 
-    host_target.connection.connectTree.side_effect = Exception(
-        "Failed to connect to share"
-    )
+    host_target.connection.connectTree.side_effect = Exception("Failed to connect to share")
 
     result = host_target.write_payload(path, payload_name, payload)
 
@@ -651,16 +645,12 @@ def test_write_payload_create_file_failure(host_target):
     tree_id = 1
 
     host_target.connection.connectTree.return_value = tree_id
-    host_target.connection.createFile.side_effect = Exception(
-        "Failed to create payload file"
-    )
+    host_target.connection.createFile.side_effect = Exception("Failed to create payload file")
 
     result = host_target.write_payload(path, payload_name, payload)
 
     host_target.connection.connectTree.assert_called_once_with(share="share")
-    host_target.connection.createFile.assert_called_once_with(
-        tree_id, "folder\\payload.txt"
-    )
+    host_target.connection.createFile.assert_called_once_with(tree_id, "folder\\payload.txt")
     assert result is False
 
 
@@ -691,16 +681,12 @@ def test_write_payload_write_file_failure(host_target):
 
     host_target.connection.connectTree.return_value = tree_id
     host_target.connection.createFile.return_value = file_handle
-    host_target.connection.writeFile.side_effect = Exception(
-        "Failed to write to payload file"
-    )
+    host_target.connection.writeFile.side_effect = Exception("Failed to write to payload file")
 
     result = host_target.write_payload(path, payload_name, payload)
 
     host_target.connection.connectTree.assert_called_once_with(share="share")
-    host_target.connection.createFile.assert_called_once_with(
-        tree_id, "folder\\payload.txt"
-    )
+    host_target.connection.createFile.assert_called_once_with(tree_id, "folder\\payload.txt")
     host_target.connection.writeFile.assert_called_once_with(
         treeId=tree_id, fileId=file_handle, data=payload
     )
@@ -746,15 +732,11 @@ def test_write_payload_close_file_failure(host_target):
     result = host_target.write_payload(path, payload_name, payload)
 
     host_target.connection.connectTree.assert_called_once_with(share="share")
-    host_target.connection.createFile.assert_called_once_with(
-        tree_id, "folder\\payload.txt"
-    )
+    host_target.connection.createFile.assert_called_once_with(tree_id, "folder\\payload.txt")
     host_target.connection.writeFile.assert_called_once_with(
         treeId=tree_id, fileId=file_handle, data=payload
     )
-    host_target.connection.closeFile.assert_called_once_with(
-        treeId=tree_id, fileId=file_handle
-    )
+    host_target.connection.closeFile.assert_called_once_with(treeId=tree_id, fileId=file_handle)
     assert result is False
 
 
@@ -787,22 +769,16 @@ def test_write_payload_disconnect_tree_failure(host_target):
 
     host_target.connection.connectTree.return_value = tree_id
     host_target.connection.createFile.return_value = file_handle
-    host_target.connection.disconnectTree.side_effect = Exception(
-        "Failed to disconnect tree"
-    )
+    host_target.connection.disconnectTree.side_effect = Exception("Failed to disconnect tree")
 
     result = host_target.write_payload(path, payload_name, payload)
 
     host_target.connection.connectTree.assert_called_once_with(share="share")
-    host_target.connection.createFile.assert_called_once_with(
-        tree_id, "folder\\payload.txt"
-    )
+    host_target.connection.createFile.assert_called_once_with(tree_id, "folder\\payload.txt")
     host_target.connection.writeFile.assert_called_once_with(
         treeId=tree_id, fileId=file_handle, data=payload
     )
-    host_target.connection.closeFile.assert_called_once_with(
-        treeId=tree_id, fileId=file_handle
-    )
+    host_target.connection.closeFile.assert_called_once_with(treeId=tree_id, fileId=file_handle)
     host_target.connection.disconnectTree.assert_called_once_with(tree_id)
     assert result is True
 
@@ -899,9 +875,7 @@ def test_delete_payload_failure(host_target):
     payload_name = "payload.txt"
     payload_path = "folder\\payload.txt"
 
-    host_target.connection.deleteFile.side_effect = Exception(
-        "Failed to delete payload"
-    )
+    host_target.connection.deleteFile.side_effect = Exception("Failed to delete payload")
 
     host_target.delete_payload(path, payload_name)
 
@@ -1026,9 +1000,7 @@ def test_review_all_folders_with_files(host_target):
     ]
     folder_rankings = {}
     host_target.paths = ["share\\folder1", "share\\folder2", "share\\folder3"]
-    result = host_target.review_all_folders(
-        folder_rankings, now - timedelta(days=2), 1, False
-    )
+    result = host_target.review_all_folders(folder_rankings, now - timedelta(days=2), 1, False)
     assert result == {
         "\\\\test_host\\share\\folder1": 1,
         "\\\\test_host\\share\\folder2": 2,
@@ -1088,9 +1060,7 @@ def test_review_all_folders_with_subfolders(host_target):
     ]
     folder_rankings = {}
     host_target.paths = ["share\\folder1", "share\\folder2"]
-    result = host_target.review_all_folders(
-        folder_rankings, now - timedelta(days=2), 2, False
-    )
+    result = host_target.review_all_folders(folder_rankings, now - timedelta(days=2), 2, False)
     assert result == {
         "\\\\test_host\\share\\folder1": 0,
         "\\\\test_host\\share\\folder1\\subfolder1": 1,
@@ -1152,9 +1122,7 @@ def test_review_all_folders_fast(host_target):
     host_target.connection.listPath.side_effect = [folder1_contents, folder2_contents]
     folder_rankings = {}
     host_target.paths = ["share\\folder1", "share\\folder2"]
-    result = host_target.review_all_folders(
-        folder_rankings, now - timedelta(days=2), 1, True
-    )
+    result = host_target.review_all_folders(folder_rankings, now - timedelta(days=2), 1, True)
     assert result == {
         "\\\\test_host\\share\\folder1": 1,
         "\\\\test_host\\share\\folder2": 1,
@@ -1251,9 +1219,7 @@ def test_review_folder_no_files(host_target):
     """
     host_target.connection.listPath.return_value = []
     folder_rankings = {}
-    result = host_target.review_folder(
-        folder_rankings, "share\\folder", datetime.now(), 1, False
-    )
+    result = host_target.review_folder(folder_rankings, "share\\folder", datetime.now(), 1, False)
     assert result == {"\\\\test_host\\share\\folder": 0}
 
 
@@ -1361,9 +1327,7 @@ def test_review_folder_subfolders_no_folder_name(host_target):
     host_target.connection.listPath.side_effect = [share_contents, folder_contents]
 
     folder_rankings = {}
-    result = host_target.review_folder(
-        folder_rankings, "share", now - timedelta(days=2), 2, False
-    )
+    result = host_target.review_folder(folder_rankings, "share", now - timedelta(days=2), 2, False)
     assert result == {"\\\\test_host\\share": 1, "\\\\test_host\\share\\folder": 3}
 
 

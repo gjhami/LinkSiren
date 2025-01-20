@@ -1,12 +1,12 @@
 # pyproject.toml
 
 [build-system]
-requires = ["setuptools>=61.0.0", "wheel"]
+requires = ["setuptools>=75.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "linksiren"
-version = "0.0.2"
+version = "0.0.4"
 description = "Generation, targeted deployment, and scalable cleanup for files that coerce Windows authentication."
 readme = "README.md"
 authors = [{ name = "George Hamilton"}]
@@ -19,6 +19,7 @@ classifiers = [
 keywords = ["coerce", "pentest", "windows", "authentication", "coercion"]
 dependencies = [
     "impacket>=0.11.0",
+    "tqdm>=4.67.1"
 ]
 requires-python = ">=3.9"
 
@@ -31,3 +32,7 @@ Issues = "https://github.com/gjhami/LinkSiren/issues"
 
 [project.scripts]
 linksiren = "linksiren.__main__:main"
+
+[tool.black]
+line-length = 100
+target-version = ['py39', 'py310', 'py311', 'py312']

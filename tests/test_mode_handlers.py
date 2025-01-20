@@ -141,14 +141,10 @@ def test_handle_generate_valid_payload_name(args):
             "linksiren.mode_handlers.create_lnk_payload",
             return_value="payload_contents",
         ),
-        patch(
-            "linksiren.mode_handlers.write_payload_local"
-        ) as mock_write_payload_local,
+        patch("linksiren.mode_handlers.write_payload_local") as mock_write_payload_local,
     ):
         handle_generate(args)
-        mock_write_payload_local.assert_called_once_with(
-            args.payload, "payload_contents"
-        )
+        mock_write_payload_local.assert_called_once_with(args.payload, "payload_contents")
 
 
 def test_handle_generate_payload_from_template(args):
@@ -185,21 +181,15 @@ def test_handle_generate_payload_from_template(args):
     with (
         patch("linksiren.mode_handlers.is_valid_payload_name", return_value=True),
         patch("linksiren.mode_handlers.Path.open", new_callable=MagicMock) as mock_open,
-        patch(
-            "linksiren.mode_handlers.write_payload_local"
-        ) as mock_write_payload_local,
+        patch("linksiren.mode_handlers.write_payload_local") as mock_write_payload_local,
     ):
 
-        mock_open.return_value.__enter__.return_value.read.return_value = (
-            template_content
-        )
+        mock_open.return_value.__enter__.return_value.read.return_value = template_content
 
         handle_generate(args)
 
         expected_payload_contents = template_content.format(attacker_ip=args.attacker)
-        mock_write_payload_local.assert_called_once_with(
-            args.payload, expected_payload_contents
-        )
+        mock_write_payload_local.assert_called_once_with(args.payload, expected_payload_contents)
 
 
 def test_handle_rank(args, domain, username, password):
@@ -235,9 +225,7 @@ def test_handle_rank(args, domain, username, password):
         patch("builtins.open", new_callable=MagicMock) as mock_open,
     ):
         handle_rank(args, domain, username, password)
-        mock_open.assert_called_once_with(
-            "folder_rankings.txt", mode="w", encoding="utf-8"
-        )
+        mock_open.assert_called_once_with("folder_rankings.txt", mode="w", encoding="utf-8")
 
 
 def test_handle_identify(args, domain, username, password):
@@ -262,7 +250,7 @@ def test_handle_identify(args, domain, username, password):
 
     Asserts:
         - Verifies that write_list_to_file is called once with an empty list and
-            "folder_targets.txt" as arguments.
+            "payload_targets.txt" as arguments.
     """
     args.active_threshold = 30
     args.targets = "targets.json"
@@ -276,7 +264,7 @@ def test_handle_identify(args, domain, username, password):
         patch("linksiren.mode_handlers.write_list_to_file") as mock_write_list_to_file,
     ):
         handle_identify(args, domain, username, password)
-        mock_write_list_to_file.assert_called_once_with([], "folder_targets.txt")
+        mock_write_list_to_file.assert_called_once_with([], "payload_targets.txt")
 
 
 def test_handle_deploy_invalid_payload_name(args, domain, username, password):
@@ -394,9 +382,7 @@ def test_handle_deploy_payload_from_template(args, domain, username, password):
         patch("linksiren.mode_handlers.write_list_to_file") as mock_write_list_to_file,
     ):
 
-        mock_open.return_value.__enter__.return_value.read.return_value = (
-            template_content
-        )
+        mock_open.return_value.__enter__.return_value.read.return_value = template_content
 
         handle_deploy(args, domain, username, password)
 
@@ -450,9 +436,7 @@ def test_handle_deploy_write_payload(args, domain, username, password):
         patch("linksiren.mode_handlers.write_list_to_file") as mock_write_list_to_file,
     ):
 
-        mock_open.return_value.__enter__.return_value.read.return_value = (
-            template_content
-        )
+        mock_open.return_value.__enter__.return_value.read.return_value = template_content
         mock_target.write_payload.return_value = True
 
         handle_deploy(args, domain, username, password)
@@ -490,9 +474,7 @@ def test_handle_cleanup(args, domain, username, password):
 
     with patch("linksiren.mode_handlers.read_targets", return_value=[mock_target]):
         handle_cleanup(args, domain, username, password)
-        mock_target.connect.assert_called_once_with(
-            user=username, password=password, domain=domain
-        )
+        mock_target.connect.assert_called_once_with(user=username, password=password, domain=domain)
         mock_target.delete_payload.assert_called_once_with("test_path", args.payload)
 
 

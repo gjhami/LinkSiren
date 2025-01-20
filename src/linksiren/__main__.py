@@ -11,8 +11,14 @@ Usage:
     Run this module as a script to execute the main function.
 """
 
+from dataclasses import dataclass
+from multiprocessing import Manager
 from impacket.examples.utils import parse_credentials
 from linksiren.arg_parser import parse_args
+from linksiren.logging_config import (
+    configure_main_logger,
+    configure_queue_listener,
+)
 from linksiren.mode_handlers import (
     handle_generate,
     handle_rank,
@@ -20,6 +26,13 @@ from linksiren.mode_handlers import (
     handle_deploy,
     handle_cleanup,
 )
+
+
+@dataclass
+class Credentials:
+    domain: str
+    username: str
+    password: str
 
 
 def main():
@@ -40,21 +53,43 @@ def main():
         None
     """
     args = parse_args()
+    credentials = None
     if "credentials" in args:
         domain, username, password = parse_credentials(args.credentials)
+        credentials = Credentials(domain=domain, username=username, password=password)
     else:
-        domain, username, password = "", "", ""
+        credentials = Credentials(domain="", username="", password="")
 
-    if args.mode == "generate":
-        handle_generate(args)
-    elif args.mode == "rank":
-        handle_rank(args, domain, username, password)
-    elif args.mode == "identify":
-        handle_identify(args, domain, username, password)
-    elif args.mode == "deploy":
-        handle_deploy(args, domain, username, password)
-    elif args.mode == "cleanup":
-        handle_cleanup(args, domain, username, password)
+    # Setup Logging
+    log_queue = Manager().Queue(-1)
+    listener = configure_queue_listener(
+        logfile="linksiren.log",
+        queue=log_queue,
+        credentials=credentials,
+        mode=args.mode,
+    )
+
+    try:
+        logger = configure_main_logger(
+            logfile="linksiren.log", credentials=credentials, mode=args.mode
+        )
+        logger.info("Starting linksiren")
+
+        if args.mode == "generate":
+            handle_generate(args)
+        elif args.mode == "rank":
+            handle_rank(args, credentials, log_queue)
+        elif args.mode == "identify":
+            handle_identify(args, credentials, log_queue)
+        elif args.mode == "deploy":
+            handle_deploy(args, credentials)
+        elif args.mode == "cleanup":
+            handle_cleanup(args, credentials)
+    finally:
+        # Ensure cleanup
+        logger.info("Terminating linksiren")
+        log_queue.put(None)
+        listener.join()
 
 
 if __name__ == "__main__":
