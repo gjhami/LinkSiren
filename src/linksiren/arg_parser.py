@@ -41,7 +41,7 @@ def parse_args():
     # Arguments for generating a payload locally
     generate_parser = subparsers.add_parser(
         "generate",
-        help="Output specified payload file "
+        description="Output specified payload file "
         "to the current directory instead of a remote location.",
     )
     generate_required_group = generate_parser.add_argument_group("Required Arguments")
@@ -63,7 +63,7 @@ def parse_args():
     # Arguments for outputting rankings of potential folders into which to place poisoned files
     rank_parser = subparsers.add_parser(
         "rank",
-        help="Output identified subfolders and rankings to " "folder_rankings.txt",
+        description="Output identified subfolders and rankings to " "folder_rankings.txt",
     )
     rank_required_group = rank_parser.add_argument_group("Required Arguments")
     rank_required_group.add_argument(
@@ -143,7 +143,7 @@ def parse_args():
     # poisoned files
     identify_parser = subparsers.add_parser(
         "identify",
-        help="Identify target folders for payload distribution"
+        description="Identify target folders for payload distribution"
         " and output to payload_targets.txt",
     )
     identify_required_group = identify_parser.add_argument_group("Required Arguments")
@@ -230,7 +230,7 @@ def parse_args():
     # Arguments for deploying poisoned files to specified locations
     deploy_parser = subparsers.add_parser(
         "deploy",
-        help="Deploy payloads to all folder UNC "
+        description="Deploy payloads to all folder UNC "
         "paths listed one per line in the file specified using --targets",
     )
     deploy_required_group = deploy_parser.add_argument_group("Required Arguments")
@@ -280,7 +280,7 @@ def parse_args():
     # Arguments for cleaning up deployed payloads when finished
     cleanup_parser = subparsers.add_parser(
         "cleanup",
-        help="Delete poisoned files from folder UNC paths " "specified in --targets",
+        description="Delete poisoned files from folder UNC paths " "specified in --targets",
     )
     cleanup_required_group = cleanup_parser.add_argument_group("Required Arguments")
     cleanup_required_group.add_argument(
