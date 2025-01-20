@@ -17,6 +17,7 @@ Usage Example:
                             depth=2, fast=True)
 """
 
+import logging
 from impacket.smbconnection import SMBConnection, SessionError
 from impacket.dcerpc.v5.srvs import STYPE_DISKTREE, STYPE_MASK
 import linksiren.pure_functions
@@ -60,9 +61,7 @@ class HostTarget:
             self.paths.append(path)
 
     # Impure functions
-    def connect(
-        self, user="", password="", domain="", lmhash="", nthash="", ntlmFallback=True
-    ):
+    def connect(self, credentials, lmhash="", nthash="", ntlmFallback=True):
         """
         Establishes a connection to the SMB server and logs in with the provided credentials.
 
@@ -80,24 +79,35 @@ class HostTarget:
         Raises:
             SessionError: If there is an error connecting to or logging into the SMB server.
         """
+        logger = logging.getLogger("main_logger")
+
         if self.connection is None:
             try:
-                self.connection = SMBConnection(
-                    remoteName=self.host, remoteHost=self.host
-                )
+                self.connection = SMBConnection(remoteName=self.host, remoteHost=self.host)
             except SessionError as e:
-                print(f"Error connecting to {self.host}: {e}")
+                logger.error(
+                    "Failed to connect to host.",
+                    extra={"path": f"\\\\{self.host}", "exception": str(e)},
+                )
                 self.connection = None
                 return
 
             try:
                 self.connection.login(
-                    user, password, domain, lmhash, nthash, ntlmFallback
+                    credentials.username,
+                    credentials.password,
+                    credentials.domain,
+                    lmhash,
+                    nthash,
+                    ntlmFallback,
                 )
                 self.logged_in = True
             except SessionError as e:
                 self.connection = None
-                print(f"Error logging into {self.host}: {e}")
+                logger.error(
+                    "Failed to connect to host.",
+                    extra={"path": f"\\\\{self.host}", "exception": str(e)},
+                )
 
     def expand_paths(self):
         """
@@ -129,15 +139,20 @@ class HostTarget:
         Returns:
             None
         """
+        logger = logging.getLogger("main_logger")
+
         # Make sure a connection has been made to the host
         if self.connection is None:
-            print(f"Error: Not connected to {self.host}")
+            logger.error("Not connected to host.", extra={"path": f"\\\\{self.host}"})
             return
 
         try:
             resp = self.connection.listShares()
         except SessionError as e:
-            print(f"Failed to connect to get shares for host: {self.host}\n\t{e}")
+            logger.error(
+                "Failed to connect to get shares for host.",
+                extra={"path": f"\\\\{self.host}", "exception": str(e)},
+            )
             return
 
         shares = []
@@ -182,50 +197,91 @@ class HostTarget:
         else:
             payload_path = f"{folder}\\{payload_name}"
 
+        full_path = f"\\\\{self.host}\\{share}\\{payload_path}"
+        logger = logging.getLogger("main_logger")
+
         # Make sure a connection has been made to the host
         if self.connection is None:
-            print(f"Error: Not connected to {self.host}")
-            return
+            logger.error(
+                "Failed to write payload. Not connected to host",
+                extra={"path": f"\\\\{self.host}"},
+            )
+            return None
 
         # Try to create a Tree connection to the share
         try:
             tree_id = self.connection.connectTree(share=share)
         except Exception as e:
-            print(f"Failed to connect to \\\\{self.host}\\{share}: " + str(e))
-            return False
+            logger.error(
+                "Failed to write payload. Could not connected to share.",
+                extra={"path": f"\\\\{self.host}\\{share}", "exception": str(e)},
+            )
+            return None
 
         # Try to open a file for writing
         try:
             file_handle = self.connection.createFile(tree_id, payload_path)
+            logger.info(" for writing.", extra={"path": full_path})
         except Exception as e:
-            print("Failed to create payload file: " + str(e))
-            print(f"\tPath: {path}\tPayload: {payload_name}")
-            return False
+            logger.error(
+                "Failed to write payload. Could not create file.",
+                extra={"path": full_path, "exception": str(e)},
+            )
+            return None
 
         # Try to write to the file
         try:
             self.connection.writeFile(treeId=tree_id, fileId=file_handle, data=payload)
+            logger.info("Successfuly wrote payload file.", extra={"path": full_path})
         except Exception as e:
-            print("Failed to write to payload file: " + str(e))
-            return False
+            logger.error(
+                "Failed to write payload. Could not write to open file.",
+                extra={"path": full_path, "exception": str(e)},
+            )
+            return None
 
         # Try to close the file
         try:
             self.connection.closeFile(treeId=tree_id, fileId=file_handle)
         except Exception as e:
-            print("Failed to close file: " + str(e))
-            return False
+            logger.error(
+                "Failed to write payload. Could not close file after writing.",
+                extra={"path": full_path, "exception": str(e)},
+            )
+            return None
 
         # Try to close the Tree connection to the share
         try:
             self.connection.disconnectTree(tree_id)
         except Exception as e:
-            print("Failed to disconnect tree: " + str(e))
-            return True
+            logger.error(
+                "Payload written. Failed to cleanly disconnect from share.",
+                extra={"path": full_path, "exception": str(e)},
+            )
+            return full_path
 
-        return True
+        return full_path
 
-    def delete_payload(self, path: str, payload_name: str):
+    def delete_payloads(self):
+        """
+        Delete all payloads from target paths.
+        Attempts to delete payload files from each path stored in self.paths.
+        For each failed deletion, the full network path is added to a list.
+
+        Returns:
+            list: A list of network paths where payload deletion failed.
+                  Empty list if all deletions were successful.
+                  Paths are in the format '\\host\path'.
+        """
+
+        payloads_not_deleted = []
+        for path in self.paths:
+            result = self.delete_payload(path)
+            if result is False:
+                payloads_not_deleted.append(f"\\\\{self.host}\\{path}")
+        return payloads_not_deleted
+
+    def delete_payload(self, path: str):
         """
         Deletes a specified payload from a given path on a remote share.
 
@@ -245,26 +301,32 @@ class HostTarget:
                 return False.
         """
         share = path.split("\\")[0]
-        folder = "\\".join(path.split("\\")[1:])
-        if folder == "":  # If the folder is the root of the share
-            payload_path = payload_name
-        else:
-            payload_path = f"{folder}\\{payload_name}"
+        payload_path = "\\".join(path.split("\\")[1:])
+        logger = logging.getLogger("main_logger")
+
+        unc_path = f"\\\\{self.host}\\{share}\\{payload_path}"
 
         if self.connection is None:
-            print(f"Failed to delete payload: \\\\{self.host}\\{share}\\{payload_path}")
-            print(f"Error: Not connected to {self.host}")
+            logger.critical(
+                "Failed to delete payload. Not connected to host.",
+                extra={"path": unc_path},
+            )
             return False
 
         try:
             self.connection.deleteFile(shareName=share, pathName=payload_path)
+            logger.info("Successfully deleted payload.", extra={"path": unc_path})
             return True
         except Exception as e:
-            print(f"Failed to delete payload: \\\\{self.host}\\{share}\\{payload_path}")
-            print(f"\tException: {e}")
+            logger.critical(
+                "Failed to delete payload",
+                extra={"path": unc_path, "exception": str(e)},
+            )
             return False
 
-    def review_all_folders(self, folder_rankings, active_threshold_date, depth, fast):
+    def review_all_folders(
+        self, folder_rankings, active_threshold_date, depth, fast, ignore_folders=None
+    ):
         """
         Reviews all folders and updates the folder rankings.
 
@@ -281,17 +343,30 @@ class HostTarget:
         Returns:
         dict: Updated folder rankings after reviewing all folders.
         """
+        logger = logging.getLogger("main_logger")
+
         if self.connection is None:
-            print(f"Error: Not connected to {self.host}")
+            logger.error(
+                "Failed to review folders. Not connected to host.",
+                extra={"path": f"\\\\{self.host}"},
+            )
             return
         else:
             for folder in self.paths:
-                folder_rankings = {
-                    **folder_rankings,
-                    **self.review_folder(
-                        folder_rankings, folder, active_threshold_date, depth, fast
-                    ),
-                }
+                unc_path = f"\\\\{self.host}\\{folder}"
+                logger.debug("Started reviewing path", extra={"path": unc_path})
+                if folder not in ignore_folders:
+                    folder_rankings = {
+                        **folder_rankings,
+                        **self.review_folder(
+                            folder_rankings, folder, active_threshold_date, depth, fast
+                        ),
+                    }
+                else:
+                    logger.debug(
+                        "Skipping review of share or folder based on the --ignore-shares argument.",
+                        extra={"path": unc_path},
+                    )
             return folder_rankings
 
     def review_folder(self, folder_rankings, path, active_threshold_date, depth, fast):
@@ -318,6 +393,7 @@ class HostTarget:
         to True, then the folder will receive a rank of 1 or 0 depending on if it contains
         at least one active file or none.
         """
+        logger = logging.getLogger("main_logger")
         ranking = 0
         subfolders = []
         reviewed = False
@@ -330,13 +406,11 @@ class HostTarget:
         try:
             listings = self.connection.listPath(shareName=share, path=f"{folder}\\*")
         except SessionError as e:
-            print(f"Failed to review path: {unc_path}\\*\n\t{e}")
+            logger.error("Failed to list paths", extra={"path": unc_path, "exception": str(e)})
             return folder_rankings
 
         for listing in listings:
-            reviewed = (
-                fast and ranking > 0
-            )  # Review completed if in fast and ranking is non-zero
+            reviewed = fast and ranking > 0  # Review completed if in fast and ranking is non-zero
             is_file = not listing.is_directory()
             name = listing.get_longname()
 
@@ -362,9 +436,7 @@ class HostTarget:
                     subfolder_path = f"{share}\\{name}"
                 else:
                     subfolder_path = f"{share}\\{folder}\\{name}"
-                subfolders.append(
-                    f"{subfolder_path}"
-                )  # Add the subfolder to the list of folders
+                subfolders.append(f"{subfolder_path}")  # Add the subfolder to the list of folders
 
         # Recursion: Call this function on all subfolders to review them if\
         # max depth is not reached.

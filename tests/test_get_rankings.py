@@ -70,9 +70,7 @@ def test_get_rankings_no_connection(host_target):
     """
     host_target.connection = None
     targets = [host_target]
-    result = get_rankings(
-        targets, "domain", "user", "password", datetime.now(), 1, False
-    )
+    result = get_rankings(targets, "domain", "user", "password", datetime.now(), 1, False, ["C$"])
     assert result == {}
 
 
@@ -93,12 +91,8 @@ def test_get_rankings_connection_failure(host_target):
     """
     host_target.connection = None
     targets = [host_target]
-    with patch.object(
-        host_target, "connect", side_effect=Exception("Connection failed")
-    ):
-        result = get_rankings(
-            targets, "domain", "user", "password", datetime.now(), 1, False
-        )
+    with patch.object(host_target, "connect", side_effect=Exception("Connection failed")):
+        result = get_rankings(targets, "domain", "user", "password", datetime.now(), 1, False)
     assert result == {}
 
 
@@ -118,12 +112,8 @@ def test_get_rankings_expand_paths_failure(host_target):
         The result of the `get_rankings` function is an empty dictionary when `expand_paths` fails.
     """
     targets = [host_target]
-    with patch.object(
-        host_target, "expand_paths", side_effect=Exception("Expand paths failed")
-    ):
-        result = get_rankings(
-            targets, "domain", "user", "password", datetime.now(), 1, False
-        )
+    with patch.object(host_target, "expand_paths", side_effect=Exception("Expand paths failed")):
+        result = get_rankings(targets, "domain", "user", "password", datetime.now(), 1, False)
     assert result == {}
 
 
@@ -152,9 +142,7 @@ def test_get_rankings_review_all_folders_failure(host_target):
         "review_all_folders",
         side_effect=Exception("Review folders failed"),
     ):
-        result = get_rankings(
-            targets, "domain", "user", "password", datetime.now(), 1, False
-        )
+        result = get_rankings(targets, "domain", "user", "password", datetime.now(), 1, False)
     assert result == {}
 
 
@@ -186,9 +174,7 @@ def test_get_rankings_success(host_target):
     folder2_contents = []
     host_target.connection.listPath.side_effect = [folder1_contents, folder2_contents]
     targets = [host_target]
-    result = get_rankings(
-        targets, "domain", "user", "password", now - timedelta(days=2), 1, False
-    )
+    result = get_rankings(targets, "domain", "user", "password", now - timedelta(days=2), 1, False)
     assert result == {
         "\\\\test_host\\share\\folder1": 1,
         "\\\\test_host\\share\\folder2": 0,
@@ -286,9 +272,7 @@ def test_get_rankings_go_fast(host_target):
     ]
 
     targets = [host_target]
-    result = get_rankings(
-        targets, "domain", "user", "password", now - timedelta(days=2), 3, True
-    )
+    result = get_rankings(targets, "domain", "user", "password", now - timedelta(days=2), 3, True)
     assert result == {
         "\\\\test_host\\share\\folder1": 1,
         "\\\\test_host\\share\\folder1\\subfolder1": 0,

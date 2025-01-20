@@ -70,9 +70,7 @@ def test_get_sorted_rankings_no_connection(targets_list):
     max_depth = 1
     go_fast = False
 
-    with patch(
-        "linksiren.pure_functions.sort_rankings", return_value={}
-    ) as mock_sort_rankings:
+    with patch("linksiren.pure_functions.sort_rankings", return_value={}) as mock_sort_rankings:
         result = get_sorted_rankings(
             targets_list,
             domain,
@@ -114,9 +112,7 @@ def test_get_sorted_rankings_with_connection(targets_list):
     go_fast = False
 
     targets_list[0].connection = MagicMock()
-    targets_list[0].review_all_folders.return_value = {
-        "\\\\test_host\\share\\folder1": 1
-    }
+    targets_list[0].review_all_folders.return_value = {"\\\\test_host\\share\\folder1": 1}
 
     with patch(
         "linksiren.pure_functions.sort_rankings",
@@ -165,9 +161,7 @@ def test_get_sorted_rankings_expand_paths_failure(targets_list):
 
     targets_list[0].expand_paths.side_effect = Exception("Error expanding paths")
 
-    with patch(
-        "linksiren.pure_functions.sort_rankings", return_value={}
-    ) as mock_sort_rankings:
+    with patch("linksiren.pure_functions.sort_rankings", return_value={}) as mock_sort_rankings:
         result = get_sorted_rankings(
             targets_list,
             domain,
@@ -208,13 +202,9 @@ def test_get_sorted_rankings_review_all_folders_failure(targets_list):
     max_depth = 1
     go_fast = False
 
-    targets_list[0].review_all_folders.side_effect = Exception(
-        "Error reviewing folders"
-    )
+    targets_list[0].review_all_folders.side_effect = Exception("Error reviewing folders")
 
-    with patch(
-        "linksiren.pure_functions.sort_rankings", return_value={}
-    ) as mock_sort_rankings:
+    with patch("linksiren.pure_functions.sort_rankings", return_value={}) as mock_sort_rankings:
         result = get_sorted_rankings(
             targets_list,
             domain,

@@ -102,9 +102,7 @@ def test_write_payload_local_lnk_success(payload_name_lnk, payload_contents, tmp
     assert payload_path.read_bytes() == payload_contents.encode()
 
 
-def test_write_payload_local_txt_failure(
-    payload_name_txt, payload_contents, tmp_path, monkeypatch
-):
+def test_write_payload_local_txt_failure(payload_name_txt, payload_contents, tmp_path, monkeypatch):
     """
     Test the `write_payload_local` function to ensure it handles exceptions correctly when writing
     to a text file. This test uses the `monkeypatch` fixture to replace the built-in `open`
@@ -129,9 +127,7 @@ def test_write_payload_local_txt_failure(
     assert not payload_path.exists()
 
 
-def test_write_payload_local_lnk_failure(
-    payload_name_lnk, payload_contents, tmp_path, monkeypatch
-):
+def test_write_payload_local_lnk_failure(payload_name_lnk, payload_contents, tmp_path, monkeypatch):
     """
     Test the `write_payload_local` function to ensure it handles failure when writing to a local
     file. This test simulates a failure scenario by mocking the `open` function to raise an

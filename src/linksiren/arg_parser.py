@@ -9,7 +9,7 @@ The CLI supports the following modes:
                 location.
     - rank: Outputs identified subfolders and rankings to folder_rankings.txt.
     - identify: Identifies target folders for payload distribution and outputs to
-                folder_targets.txt.
+                payload.txt.
     - deploy: Deploys payloads to all folder UNC paths listed in the specified file.
     - cleanup: Deletes poisoned files from folder UNC paths specified in the targets file.
 Each mode has its own set of required and optional arguments, which are detailed in the help
@@ -25,7 +25,7 @@ def parse_args():
     The tool supports multiple modes of operation, each with its own set of arguments:
     - generate: Output specified payload file to the current directory instead of a remote location.
     - rank: Output identified subfolders and rankings to folder_rankings.txt.
-    - identify: Identify target folders for payload distribution and output to folder_targets.txt.
+    - identify: Identify target folders for payload distribution and output to payload_targets.txt.
     - deploy: Deploy payloads to all folder UNC paths listed in the specified file.
     - cleanup: Delete poisoned files from folder UNC paths specified in the targets file.
     Returns:
@@ -73,17 +73,16 @@ def parse_args():
         "-t",
         "--targets",
         required=True,
-        help="Path to a text file containing UNC paths to file shares / base "
-        "directories within which to rank folders as potential locations for "
-        "placing poisoned files.",
+        help="Path to a text file containing UNC "
+        "paths to file shares / base directories within which to rank "
+        "folders as potential locations for placing poisoned files.",
     )
     rank_parser.add_argument(
         "-md",
         "--max-depth",
         type=int,
         default=3,
-        help="(Default: 3) The maximum depth of folders to search within "
-        "the target.",
+        help="(Default: 3) The maximum depth of folders to search within " "the target.",
     )
     rank_parser.add_argument(
         "-at",
@@ -100,6 +99,26 @@ def parse_args():
         help="(Default: False) Mark folders active as soon as one active "
         "file in them is identified and move on. Ranks are all set to 1 "
         "assigned.",
+    )
+    rank_parser.add_argument(
+        "-is",
+        "--ignore-shares",
+        nargs="+",
+        default=["C$", "ADMIN$", "SYSVOL"],
+        help="(Default: 'C$' 'ADMIN$' 'SYSVOL') Do not review the "
+        "contents of specified shares when crawling as part of the folder "
+        "ranking process.",
+    )
+    rank_parser.add_argument(
+        "-mc",
+        "--max-concurrency",
+        type=int,
+        default=4,
+        help="(Default: 4) Max number of concurrent processes to use for "
+        "crawling in rank and identification modes. Note: a maximum of 1 "
+        "process is used per host. So linksiren will never make multiple "
+        "simultaneous connections to the same host and concurrent processing "
+        "will not accelerate crawling multiple shares on a single host.",
     )
     # rank_parser.add_argument('-hashes', action="store", metavar = "LMHASH:NTHASH",
     #                               help='NTLM hashes, format is LMHASH:NTHASH')
@@ -125,7 +144,7 @@ def parse_args():
     identify_parser = subparsers.add_parser(
         "identify",
         help="Identify target folders for payload distribution"
-        " and output to folder_targets.txt",
+        " and output to payload_targets.txt",
     )
     identify_required_group = identify_parser.add_argument_group("Required Arguments")
     identify_required_group.add_argument(
@@ -135,8 +154,9 @@ def parse_args():
         "-t",
         "--targets",
         required=True,
-        help="Path to a text file containing UNC paths to file shares / base "
-        "directories for deployment or from which to remove payload files",
+        help="Path to a text file containing "
+        "UNC paths to file shares / base directories to crawl for optimal "
+        "locations to write poisoned files.",
     )
     identify_parser.add_argument(
         "-md",
@@ -150,8 +170,7 @@ def parse_args():
         "--active-threshold",
         type=int,
         default=2,
-        help="(Default: 2) Max number of days since within which a file is"
-        " considered active.",
+        help="(Default: 2) Max number of days since within which a file is" " considered active.",
     )
     identify_parser.add_argument(
         "-f",
@@ -162,12 +181,32 @@ def parse_args():
         "file in them is identified and move on. Ranks are all set to 1.",
     )
     identify_parser.add_argument(
+        "-is",
+        "--ignore-shares",
+        nargs="+",
+        default=["C$", "ADMIN$", "SYSVOL"],
+        help="(Default: 'C$' 'ADMIN$' 'SYSVOL') Do not review the "
+        "contents of specified shares when crawling as part of the folder "
+        "ranking and optimal poisoning folder identification process.",
+    )
+    identify_parser.add_argument(
         "-mf",
         "--max-folders-per-target",
         type=int,
         default=10,
         help="(Default: 10) Maximum number of folders to output as "
         "deployment targets per supplied target share or folder.",
+    )
+    identify_parser.add_argument(
+        "-mc",
+        "--max-concurrency",
+        type=int,
+        default=4,
+        help="(Default: 4) Max number of concurrent processes to use for "
+        "crawling in rank and identification modes. Note: a maximum of 1 "
+        "process is used per host. So linksiren will never make multiple "
+        "simultaneous connections to the same host and concurrent processing "
+        "will not accelerate crawling multiple shares on a single host.",
     )
     # identify_parser.add_argument('-hashes', action="store", metavar = "LMHASH:NTHASH",
     #                               help='NTLM hashes, format is LMHASH:NTHASH')
@@ -199,17 +238,17 @@ def parse_args():
         "credentials", help="[domain/]username[:password] for authentication"
     )
     deploy_required_group.add_argument(
-        "-t",
-        "--targets",
-        required=True,
-        help="Path to a text file containing UNC paths to folders into which "
-        "poisoned files will be deployed.",
-    )
-    deploy_required_group.add_argument(
         "-a",
         "--attacker",
         required=True,
         help="Attacker IP or hostname to place in poisoned files.",
+    )
+    deploy_parser.add_argument(
+        "-t",
+        "--targets",
+        default="payload_targets.txt",
+        help="(Default: 'payload_targets.txt') Path to a text file containing "
+        "UNC paths to folders into which poisoned files will be deployed.",
     )
     deploy_parser.add_argument(
         "-n",
@@ -247,20 +286,12 @@ def parse_args():
     cleanup_required_group.add_argument(
         "credentials", help="[domain/]username[:password] for authentication"
     )
-    cleanup_required_group.add_argument(
+    cleanup_parser.add_argument(
         "-t",
         "--targets",
-        required=True,
-        help="Path to a text file containing UNC paths to folders in which "
-        "poisoned files are located.",
-    )
-    cleanup_parser.add_argument(
-        "-n",
-        "--payload",
-        default="@Test_Do_Not_Remove.searchConnector-ms",
-        help="(Default: @Test_Do_Not_Remove.searchConnector-ms) Name "
-        "of payload file ending in .library-ms, .searchConnector-ms, "
-        ".lnk, or .url",
+        default="payloads_written.txt",
+        help="(Default: 'payloads_written.txt') Path to a text file containing UNC "
+        "paths poisoned files to clean up.",
     )
     # cleanup_parser.add_argument('-hashes', action="store", metavar = "LMHASH:NTHASH",
     #                               help='NTLM hashes, format is LMHASH:NTHASH')

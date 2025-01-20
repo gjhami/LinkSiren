@@ -274,9 +274,7 @@ def test_filter_targets_zero_max_folders(sorted_rankings, host_targets):
     assert result == []
 
 
-def test_filter_targets_max_folders_greater_than_rankings(
-    sorted_rankings, host_targets
-):
+def test_filter_targets_max_folders_greater_than_rankings(sorted_rankings, host_targets):
     """
     Test the filter_targets function when the maximum number of folders per target is greater
     than the number of rankings.

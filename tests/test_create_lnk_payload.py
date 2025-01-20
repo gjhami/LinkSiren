@@ -115,9 +115,7 @@ def test_payload_path_too_long(template_bytes):
     Asserts:
         The function should return False when the attacker IP exceeds the maximum path length.
     """
-    attacker_ip = (
-        "A" * 228
-    )  # Replace with attacker IP that exceeds the maximum path length
+    attacker_ip = "A" * 228  # Replace with attacker IP that exceeds the maximum path length
     expected_result = False
     result = create_lnk_payload(attacker_ip, template_bytes)
     assert result == expected_result
