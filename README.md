@@ -91,7 +91,7 @@ linksiren cleanup [domain]/username[:password]
 
 6. Scan for the WebClient service, now likely started on several machines, see [theHackerRecipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#recon) for details. See this BHIS presentation [Attack Tactics: Shadow Creds for Privesc](https://www.linkedin.com/posts/black-hills-information-security_attack-tactic-shadow-creds-activity-7284615209929891840-Po8m) for how HTTP authentication coerced from the service can be used privesc and lateral movement. Additionally see my blog post [Files that Coerce](https://alittleinsecure.com/files-that-coerce-search-connectors-and-beyond/) for details of how a machine, once taken over using shadow credentials, can be used to coerce authentication from logged in users.
 
-# Attack Paths Assocaited with LinkSiren
+# Attack Path Assocaited with LinkSiren
 1. (Optional) Get Intranet-Zoned if you want to coerce HTTP authentication. See the note in [theHackerRecipes WebClient Abuse](https://www.thehacker.recipes/a-d/movement/mitm-and-coerced-authentications/webclient#abuse) and my blog post [DNS Hijacking: Say My Name](https://alittleinsecure.com/dns-hijacking-say-my-name/).
 2. Create a list of UNC paths to writeable SMB shares.
     - Note: Consider write and delete privileges are distinct on Windows. It is possible you can create a poisoned file but will not have permissions to delete it. If this happens, LinkSiren will be very verbose in letting you know.
@@ -246,10 +246,10 @@ Required Arguments:
 </details>
 
 # Other Information
-## What Payload Type Should I Use?
+### What Payload Type Should I Use?
 Search Connectors (.searchConnector-ms): This is generally the best option. They require the least amount of interaction, start the WebClient service from a stopped state automatically when the parent folder is opened in Explorer, and are capable of coercing both SMB and HTTP authentication using a single file.
 
-## How is this better than the other tools?
+### How is this better than the other tools?
 Summary
 - Scales to an arbitrary number of malicious .searchConnector-ms, .library-ms, .url, or .lnk files
 - Targeted malicious file placement
@@ -262,7 +262,7 @@ Other tools are built to place a single malicious .searchConnector-ms, .library-
 
 LinkSiren crawls accessible shares and ranks every subfolder based on the liklihood it will be opened by a user sometime soon. Then it uses this information to target malicious file distribution to multiple locations at once. Additionally, LinkSiren records the full UNC path of malicious files it creates, allowing for cleanup with a single command.
 
-## How will you make it even better?
+### How will you make it even better?
 I'm looking to add the following features:
 - [ ] Add safety features:
     - [ ] Check if a file exists before overwriting it with a payload in deploy mode.
@@ -276,5 +276,5 @@ I'm looking to add the following features:
 - [ ] Add pydantic validation for arguments including targets and output file names.
 - [ ] Test the tool through a socks proxy connection to an smb share generated using ntlmrelayx.
 
-## Disclaimer
+### Disclaimer
 This tools is designed for ethical hacking and penetration testing. It should be used exclusively on networks where explicit, written permission has been granted for testing. I accept no responsibility for the safety or effectiveness of this tool. Please don't sue me.
