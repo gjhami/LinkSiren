@@ -9,22 +9,16 @@ _The Siren waits thee, singing song for song._ - Walter Savage Landor
 LinkSiren is your new favorite escalation tactic when you're stuck as a non-privileged user with lots of access to file shares. LinkSiren distributes .library-ms, .searchConnector-ms, .url, and .lnk files to optimal locations in accessible file shares to coerce NetNTLM and Kerberos authentication over SMB and HTTP from users that open them and starting the Webclient service on their machines. It's like [Farmer](https://github.com/mdsecactivebreach/Farmer/tree/1f37598125a92c9edf41295c6c1b7c258143968d), [Lnkbomb](https://github.com/dievus/lnkbomb), or [Slinky](https://www.infosecmatter.com/crackmapexec-module-library/?cmem=smb-slinky) but it identifies the best place to put the files for maximum coercion, has scalable deployment and cleanup built in, and generates detailed logs useful for client engagements.
 
 # Installation
-Using pipx (Recommended)
+Using [uv](https://github.com/astral-sh/uv) (Recommended)
 ```
-# Install linksiren
-pipx install git+https://github.com/gjhami/LinkSiren.git
+# Install from the main branch
+uv tool install git+https://github.com/gjhami/LinkSiren.git
+# uv tool install linksiren # Or install the latest release from PyPi
 ```
 
 <details>
-<summary>Alternatively, install from PyPi or source</summary>
-
-Using PyPi
-```
-# Install from PyPi using pipx
-pipx install linksiren
-```
-
-From Source
+<summary>Alternatively, install from source</summary>
+    
 ```
 # Download source code
 git clone https://github.com/gjhami/LinkSiren.git
