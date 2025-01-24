@@ -16,25 +16,6 @@ uv tool install git+https://github.com/gjhami/LinkSiren.git
 # uv tool install linksiren # Or install the latest release from PyPi
 ```
 
-<details>
-<summary>Alternatively, install from source</summary>
-    
-```
-# Download source code
-git clone https://github.com/gjhami/LinkSiren.git
-cd LinkSiren
-
-# Optional: Set up a virtual environment and install requirements
-python -m venv .venv
-source ./.venv/bin/activate # Linux
-# .\.venv\Scripts\activate # Windows
-
-# Install requirements
-python -m pip install -r requirements.txt
-```
-
-</details>
-
 # Typical Usage
 ```bash
 # Identify optimal locations for poisoned file deployment
