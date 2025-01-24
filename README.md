@@ -240,17 +240,15 @@ LinkSiren crawls accessible shares and ranks every subfolder based on the liklih
 
 ### How will you make it even better?
 I'm looking to add the following features:
+- [ ] Test the tool through a socks proxy connection to an smb share generated using ntlmrelayx.
 - [ ] Add safety features:
     - [ ] Check if a file exists before overwriting it with a payload in deploy mode.
     - [ ] Check if files can be deleted from a target path before creating a payload there.
 - [ ] Add the ability to deploy files encrypted with EFS to trigger the start of the Encrypting File Service on Windows 11 machines so authentication can subsequently be coreced using tools like [Coercer](https://github.com/p0dalirius/Coercer) and [PetitPotam](https://github.com/topotam/PetitPotam).
-- [ ] Repackage for use with UV.
 - [ ] Add an option for 'invisible' targets for .Library-ms and .searchConnector-ms files where the icon is set to blank and the name is set to a non-printing, valid ASCII character.
 - [ ] Test for anonymous access to shares.
 - [ ] Enable authentication using a NTLM hash.
 - [ ] Enable ticket based authnentication (Kerberos).
-- [ ] Add pydantic validation for arguments including targets and output file names.
-- [ ] Test the tool through a socks proxy connection to an smb share generated using ntlmrelayx.
 
 ### Disclaimer
 This tools is designed for ethical hacking and penetration testing. It should be used exclusively on networks where explicit, written permission has been granted for testing. I accept no responsibility for the safety or effectiveness of this tool. Please don't sue me.
