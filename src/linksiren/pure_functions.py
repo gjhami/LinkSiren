@@ -29,8 +29,22 @@ def process_targets(unc_paths: list):
         # targets will contain HostTarget objects with grouped paths by host.
     """
     targets = []
+    logger = logging.getLogger("main_logger")
+
     for unc_path in unc_paths:
-        host, path = parse_target(unc_path)
+        # Tolerate blank lines / accidental whitespace in targets files instead
+        # of crashing the whole run.
+        stripped = unc_path.strip() if isinstance(unc_path, str) else unc_path
+        if not stripped:
+            continue
+        try:
+            host, path = parse_target(stripped)
+        except ValueError as e:
+            logger.error(
+                "Skipping malformed target",
+                extra={"path": stripped, "exception": str(e)},
+            )
+            continue
 
         target_handled = False
         for target in targets:
@@ -46,18 +60,25 @@ def process_targets(unc_paths: list):
 
 
 def parse_target(unc_path: str):
-    """
-    Parses a UNC (Universal Naming Convention) path to extract the host and the path.
-    Args:
-        unc_path (str): The UNC path to be parsed. It should be in the format
-        '\\\\host\\path\\to\\resource'.
-    Returns:
-        tuple: A tuple containing the host and the path. The host is the third element in the
-               split path, and the path is the remaining elements joined by backslashes.
-    """
-    host = unc_path.split("\\")[2]
-    path = "\\".join(unc_path.split("\\")[3:])
+    """Split ``\\\\host\\share\\sub\\dir`` into ``(host, "share\\sub\\dir")``.
 
+    The leading ``\\\\`` is required. A bare ``\\\\host`` (no share) yields
+    ``(host, "")`` — used downstream as "expand to all shares on this host".
+
+    Raises:
+        ValueError: if ``unc_path`` is empty or not a UNC path.
+    """
+    if not unc_path or not unc_path.startswith("\\\\"):
+        raise ValueError(
+            f"Invalid UNC target {unc_path!r}: expected a path starting with \\\\"
+        )
+
+    # strip the leading "\\" so split() doesn't yield two empty leading elements
+    parts = unc_path[2:].split("\\")
+    host = parts[0]
+    if not host:
+        raise ValueError(f"Invalid UNC target {unc_path!r}: empty host component")
+    path = "\\".join(parts[1:])
     return host, path
 
 
@@ -141,19 +162,9 @@ def create_lnk_payload(attacker_ip, template_bytes):
     return bytes(payload_bytes)
 
 
-def compute_threshold_date(current_date, theshold_length):
-    """
-    Computes the threshold date by subtracting a given number of days from the current date.
-
-    Args:
-        current_date (datetime.date): The current date.
-        theshold_length (int): The number of days to subtract from the current date.
-
-    Returns:
-        datetime.date: The computed threshold date.
-    """
-    threshold_date = current_date - timedelta(days=theshold_length)
-    return threshold_date
+def compute_threshold_date(current_date, threshold_length):
+    """Return ``current_date`` minus ``threshold_length`` days."""
+    return current_date - timedelta(days=threshold_length)
 
 
 def is_active_file(threshold_date, access_time):

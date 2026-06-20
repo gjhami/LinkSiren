@@ -13,17 +13,21 @@ class JSONFormatter(logging.Formatter):
         self.mode = mode
         super().__init__()
 
+    def _default_user(self):
+        """Return ``user@domain`` for ``self.credentials`` or ``None``."""
+        if self.credentials is None:
+            return None
+        username = getattr(self.credentials, "username", "") or ""
+        domain = getattr(self.credentials, "domain", "") or ""
+        return f"{username}@{domain}"
+
     def format(self, record):
         log_record = {
             "Timestamp": time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(record.created)),
             "Level": record.levelname,
             "Message": record.getMessage(),
             "Path": getattr(record, "path", None),
-            "User": getattr(
-                record,
-                "credentials",
-                f"{self.credentials.username}@{self.credentials.domain}",
-            ),
+            "User": getattr(record, "credentials", None) or self._default_user(),
             "Mode": getattr(record, "mode", self.mode),
             "Exception": getattr(record, "exception", None),
         }

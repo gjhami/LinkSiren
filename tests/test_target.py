@@ -69,6 +69,14 @@ from impacket.smbconnection import SessionError
 from impacket.nt_errors import STATUS_WRONG_PASSWORD, STATUS_CONNECTION_RESET
 from impacket.dcerpc.v5.srvs import STYPE_DISKTREE
 from linksiren.target import HostTarget
+from linksiren.__main__ import AuthContext
+
+
+def _auth(**overrides):
+    """Helper: build an AuthContext for tests, with optional field overrides."""
+    base = dict(domain="domain", username="user", password="password")
+    base.update(overrides)
+    return AuthContext(**base)
 
 
 @pytest.fixture
@@ -221,7 +229,7 @@ def test_connect_already_connected(host_target, smb_connection_mock):
         - The `logged_in` attribute of the host target is `False`.
     """
     host_target.connection = smb_connection_mock
-    host_target.connect(user="user", password="password", domain="domain")
+    host_target.connect(_auth())
     smb_connection_mock.login.assert_not_called()
     assert host_target.connection is smb_connection_mock
     assert host_target.logged_in is False
@@ -269,7 +277,7 @@ def test_connect_no_connection_failure(host_target):
         "linksiren.target.SMBConnection",
         side_effect=SessionError(STATUS_CONNECTION_RESET),
     ):
-        host_target.connect(user="user", password="password", domain="domain")
+        host_target.connect(_auth())
         assert host_target.connection is None
         assert host_target.logged_in is False
 
@@ -296,10 +304,11 @@ def test_connect_login_success(host_target, smb_connection_mock):
     """
     host_target.connection = None
     with patch("linksiren.target.SMBConnection", return_value=smb_connection_mock):
-        host_target.connect(user="user", password="password", domain="domain")
+        host_target.connect(_auth())
         smb_connection_mock.login.assert_called_once_with(
             "user", "password", "domain", "", "", True
         )
+
         assert host_target.logged_in is True
 
 
@@ -324,10 +333,11 @@ def test_connect_login_failure(host_target, smb_connection_mock):
     host_target.connection = None
     smb_connection_mock.login.side_effect = SessionError(STATUS_WRONG_PASSWORD)
     with patch("linksiren.target.SMBConnection", return_value=smb_connection_mock):
-        host_target.connect(user="user", password="password", domain="domain")
+        host_target.connect(_auth())
         smb_connection_mock.login.assert_called_once_with(
             "user", "password", "domain", "", "", True
         )
+
         assert host_target.connection is None
         assert host_target.logged_in is False
 
@@ -554,7 +564,7 @@ def test_write_payload_success(host_target):
     )
     host_target.connection.closeFile.assert_called_once_with(treeId=tree_id, fileId=file_handle)
     host_target.connection.disconnectTree.assert_called_once_with(tree_id)
-    assert result is True
+    assert result == "\\\\test_host\\share\\folder\\payload.txt"
 
 
 def test_write_payload_no_folder(host_target):
@@ -578,7 +588,7 @@ def test_write_payload_no_folder(host_target):
 
     result = host_target.write_payload(path, payload_name, payload)
     host_target.connection.createFile.assert_called_once_with(1, payload_name)
-    assert result is True
+    assert result == "\\\\test_host\\share\\payload.txt"
 
 
 def test_write_payload_no_connection(host_target):
@@ -622,7 +632,7 @@ def test_write_payload_connect_tree_failure(host_target):
     result = host_target.write_payload(path, payload_name, payload)
 
     host_target.connection.connectTree.assert_called_once_with(share="share")
-    assert result is False
+    assert result is None
 
 
 def test_write_payload_create_file_failure(host_target):
@@ -651,7 +661,7 @@ def test_write_payload_create_file_failure(host_target):
 
     host_target.connection.connectTree.assert_called_once_with(share="share")
     host_target.connection.createFile.assert_called_once_with(tree_id, "folder\\payload.txt")
-    assert result is False
+    assert result is None
 
 
 def test_write_payload_write_file_failure(host_target):
@@ -690,7 +700,7 @@ def test_write_payload_write_file_failure(host_target):
     host_target.connection.writeFile.assert_called_once_with(
         treeId=tree_id, fileId=file_handle, data=payload
     )
-    assert result is False
+    assert result is None
 
 
 def test_write_payload_close_file_failure(host_target):
@@ -737,7 +747,7 @@ def test_write_payload_close_file_failure(host_target):
         treeId=tree_id, fileId=file_handle, data=payload
     )
     host_target.connection.closeFile.assert_called_once_with(treeId=tree_id, fileId=file_handle)
-    assert result is False
+    assert result is None
 
 
 def test_write_payload_disconnect_tree_failure(host_target):
@@ -780,7 +790,7 @@ def test_write_payload_disconnect_tree_failure(host_target):
     )
     host_target.connection.closeFile.assert_called_once_with(treeId=tree_id, fileId=file_handle)
     host_target.connection.disconnectTree.assert_called_once_with(tree_id)
-    assert result is True
+    assert result == "\\\\test_host\\share\\folder\\payload.txt"
 
 
 def test_delete_payload_no_folder(host_target):
@@ -800,7 +810,7 @@ def test_delete_payload_no_folder(host_target):
     path = "share"
     payload_name = "payload.txt"
 
-    result = host_target.delete_payload(path, payload_name)
+    result = host_target.delete_payload(f"{path}\\{payload_name}")
     host_target.connection.deleteFile.assert_called_once_with(
         shareName="share", pathName=payload_name
     )
@@ -822,7 +832,7 @@ def test_delete_payload_success(host_target):
     payload_name = "payload.txt"
     payload_path = "folder\\payload.txt"
 
-    host_target.delete_payload(path, payload_name)
+    host_target.delete_payload(f"{path}\\{payload_name}")
 
     host_target.connection.deleteFile.assert_called_once_with(
         shareName="share", pathName=payload_path
@@ -845,7 +855,7 @@ def test_delete_payload_no_connection(host_target):
     path = "share\\folder"
     payload_name = "payload.txt"
 
-    result = host_target.delete_payload(path, payload_name)
+    result = host_target.delete_payload(f"{path}\\{payload_name}")
     assert result is False
 
 
@@ -877,7 +887,7 @@ def test_delete_payload_failure(host_target):
 
     host_target.connection.deleteFile.side_effect = Exception("Failed to delete payload")
 
-    host_target.delete_payload(path, payload_name)
+    host_target.delete_payload(f"{path}\\{payload_name}")
 
     host_target.connection.deleteFile.assert_called_once_with(
         shareName="share", pathName=payload_path
@@ -901,7 +911,9 @@ def test_review_all_folders_no_connection(host_target):
     folder_rankings = {}
     host_target.paths = ["share\\folder1", "share\\folder2"]
     result = host_target.review_all_folders(folder_rankings, datetime.now(), 1, False)
-    assert result is None
+    # With no connection, the input rankings are returned unchanged so the
+    # caller can keep merging results from other hosts.
+    assert result == {}
 
 
 def test_review_all_folders_no_files(host_target):

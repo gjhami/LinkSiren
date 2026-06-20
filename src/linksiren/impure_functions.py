@@ -191,6 +191,9 @@ def get_rankings(
     folder_rankings = {}
     logger = logging.getLogger("main_logger")
 
+    if not targets:
+        return folder_rankings
+
     worker_partial = partial(
         get_rankings_for_target,
         credentials=credentials,
@@ -200,11 +203,17 @@ def get_rankings(
         ignore_folders=ignore_folders,
     )
 
-    num_workers = max_concurrency
-    if len(targets) < num_workers:
-        num_workers = len(targets)
-
+    num_workers = min(max(max_concurrency, 1), len(targets))
     logger.debug("Using %d worker processes to crawl %d target hosts", num_workers, len(targets))
+
+    # Single-target / single-worker: skip the Pool. Avoids the pickle overhead
+    # and lets tests pass MagicMock targets that aren't fork-safe.
+    if num_workers == 1:
+        for target in tqdm(targets, total=len(targets)):
+            result = worker_wrapper(target, worker_partial=worker_partial, log_queue=log_queue)
+            if result is not None:
+                folder_rankings.update(result)
+        return folder_rankings
 
     with Pool(processes=num_workers) as pool:
         for result in tqdm(
@@ -214,11 +223,10 @@ def get_rankings(
             ),
             total=len(targets),
         ):
-            if result is not None:  # Result is None if an error occurred
-                folder_rankings.update(result)  # Update the folder rankings with the results
-
-        pool.close()  # Close the pool to prevent further tasks from being submitted
-        pool.join()  # Wait for all worker processes to finish
+            if result is not None:
+                folder_rankings.update(result)
+        pool.close()
+        pool.join()
 
     return folder_rankings
 
