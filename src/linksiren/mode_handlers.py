@@ -197,10 +197,13 @@ def handle_cleanup(args, credentials):
         None
     """
     payloads_not_deleted = []
+    payloads_not_deleted = []
     targets = read_targets(args.targets)
     for target in targets:
         target.connect(credentials)
-        payloads_not_deleted = target.delete_payloads()
+        # Use ``extend`` so failures from earlier hosts aren't dropped on the
+        # floor when iterating multiple targets.
+        payloads_not_deleted.extend(target.delete_payloads())
 
     write_list_to_file(payloads_not_deleted, "payloads_not_deleted.txt", "w")
 

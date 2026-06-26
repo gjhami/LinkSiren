@@ -27,10 +27,25 @@ def process_targets(unc_paths: list):
         ]
         targets = process_targets(unc_paths)
         # targets will contain HostTarget objects with grouped paths by host.
+
+    Blank lines, whitespace-only lines, and malformed UNC entries are
+    skipped with a log message rather than crashing the whole run.
     """
     targets = []
+    logger = logging.getLogger("main_logger")
+
     for unc_path in unc_paths:
-        host, path = parse_target(unc_path)
+        stripped = unc_path.strip() if isinstance(unc_path, str) else unc_path
+        if not stripped:
+            continue
+        try:
+            host, path = parse_target(stripped)
+        except ValueError as e:
+            logger.error(
+                "Skipping malformed target",
+                extra={"path": stripped, "exception": str(e)},
+            )
+            continue
 
         target_handled = False
         for target in targets:
@@ -46,18 +61,25 @@ def process_targets(unc_paths: list):
 
 
 def parse_target(unc_path: str):
-    """
-    Parses a UNC (Universal Naming Convention) path to extract the host and the path.
-    Args:
-        unc_path (str): The UNC path to be parsed. It should be in the format
-        '\\\\host\\path\\to\\resource'.
-    Returns:
-        tuple: A tuple containing the host and the path. The host is the third element in the
-               split path, and the path is the remaining elements joined by backslashes.
-    """
-    host = unc_path.split("\\")[2]
-    path = "\\".join(unc_path.split("\\")[3:])
+    """Split ``\\\\host\\share\\sub\\dir`` into ``(host, "share\\sub\\dir")``.
 
+    The leading ``\\\\`` is required. A bare ``\\\\host`` (no share) yields
+    ``(host, "")``, used downstream as "expand to all shares on this host".
+
+    Raises:
+        ValueError: if ``unc_path`` is empty or not a UNC path.
+    """
+    if not unc_path or not unc_path.startswith("\\\\"):
+        raise ValueError(
+            f"Invalid UNC target {unc_path!r}: expected a path starting with \\\\"
+        )
+
+    # strip the leading "\\" so split() doesn't yield two empty leading elements
+    parts = unc_path[2:].split("\\")
+    host = parts[0]
+    if not host:
+        raise ValueError(f"Invalid UNC target {unc_path!r}: empty host component")
+    path = "\\".join(parts[1:])
     return host, path
 
 
