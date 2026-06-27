@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-27
+### Added
+- `linksiren discover`: enumerate computer objects from Active Directory via LDAP. Filters disabled accounts; optional `--inactive-days N` drops dormant hosts. Emits one `\\<dnsHostName>` UNC per line (or bare hostnames with `--hostname-only`). Supports `--ldaps`, `--base-dn`, `-o PATH`, `--json`.
+
 ## [0.6.0] - 2026-06-27
 ### Added
 - `linksiren check`: per-host preflight that reports auth result, SMB signing required, listable disk shares, EFS / WebClient service state, and per-file-type coercion viability for `.url` / `.searchConnector-ms` / `.library-ms` / `.lnk`. Output as human-readable or `--json`.
