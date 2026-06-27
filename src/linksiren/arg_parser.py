@@ -637,6 +637,12 @@ def parse_args():
         "--max-concurrency", type=int, default=1, dest="max_concurrency",
         help="(Default: 1) Per-host parallelism for cleanup deletes.",
     )
+    cleanup_parser.add_argument(
+        "--stop-webclient", action="store_true", default=False, dest="stop_webclient",
+        help="(Default: False) After deleting payloads, stop the WebClient "
+        "service via SCMR. Unlike EFS, WebClient accepts STOP under normal "
+        "configuration; safe to use opportunistically.",
+    )
     _add_auth_args(cleanup_parser)
 
     args = parser.parse_args()

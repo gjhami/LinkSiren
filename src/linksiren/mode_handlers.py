@@ -853,6 +853,8 @@ def handle_cleanup(args, credentials):
         efs_started_by_us = set()
     stopped_hosts = []
     refused_hosts = []
+    stop_webclient = getattr(args, "stop_webclient", False)
+    webclient_stopped = []
     for target in targets:
         target.connect(credentials)
         # Use ``extend`` so failures from earlier hosts aren't dropped on the
@@ -872,6 +874,18 @@ def handle_cleanup(args, credentials):
                     stopped_hosts.append(target.host)
                 else:
                     refused_hosts.append(target.host)
+        # Stop WebClient: unlike EFS, the service accepts SCMR STOP under
+        # normal Windows configuration. Always safe to attempt; a refusal
+        # typically means a legitimate user holds an active WebDAV handle.
+        if stop_webclient and target.connection is not None:
+            from linksiren.target import (
+                _webclient_service_is_running,
+                _webclient_service_stop,
+            )
+            wc_state = _webclient_service_is_running(target.connection)
+            if wc_state is True:
+                if _webclient_service_stop(target.connection, logger=logging.getLogger("main_logger")):
+                    webclient_stopped.append(target.host)
 
     write_list_to_file(payloads_not_deleted, "payloads_not_deleted.txt", "w")
 
@@ -928,6 +942,14 @@ def handle_cleanup(args, credentials):
             "verify with `Get-Service EFS` and stop out-of-band."
         )
         main_log.warning(msg, extra={"path": None})
+        print(msg, file=sys.stderr)
+
+    if stop_webclient and webclient_stopped:
+        msg = (
+            f"Stopped WebClient service via SCMR on {len(webclient_stopped)} "
+            f"host(s): {', '.join(webclient_stopped)}."
+        )
+        main_log.info(msg, extra={"path": None})
         print(msg, file=sys.stderr)
 
     if len(payloads_not_deleted) == 0:

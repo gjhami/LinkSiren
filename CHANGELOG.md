@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-06-27
+### Added
+- `cleanup --stop-webclient`: stop the WebClient service via MS-SCMR after deleting payloads. Unlike EFS, WebClient accepts SCMR STOP under normal Windows configuration.
+
+### Changed
+- `cleanup` now verifies each delete by post-probing with an exact-filename `listPath`. Any leftover surfaces in `payloads_not_deleted.txt` and a CRITICAL log entry.
+- Generic `_service_stop(svc_name)` helper factored out of `_efs_service_stop`. Both `_efs_service_stop` and the new `_webclient_service_stop` are thin wrappers.
+
 ## [0.9.0] - 2026-06-27
 ### Added
 - `deploy --randomize-suffix`: per-file 4-char `[A-Z0-9]` suffix on filename AND every URL path in the payload, defeats Explorer / WebDAV / browser per-name caches.
