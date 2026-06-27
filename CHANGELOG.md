@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-27
+### Added
+- `deploy --encrypt`: wakes the triggered-start EFS service on the target so `\PIPE\efsrpc` becomes available for follow-on coercion (Coercer, PetitPotam). Two trigger-target modes selected with `--encrypt-target`:
+  - `payload` (default): passes `FILE_ATTRIBUTE_ENCRYPTED` (0x4000) on the SMB CREATE for the payload itself, then reverts via `EfsRpcDecryptFileSrv` so the payload lands plaintext.
+  - `existing`: writes the payload plain, briefly creates+deletes a hidden throwaway file with the encryption bit to wake EFS, then EFSR-encrypts+decrypts the smallest non-empty existing file in the target folder.
+- `deploy --encrypt-keep`: opts into keeping the trigger file visibly EFS-encrypted on disk (attribute `Ae`).
+- Per-engagement sidecar `encrypt_triggered_hosts.txt` recording every host where an `--encrypt` trigger was fired.
+- `docs/DETECTION.md`: blue-team-facing artifact reference. Currently covers `deploy --encrypt`; later releases extend it.
+
+### Changed
+- `docs/DEPLOY.md` extended with the EFS section.
+
 ## [0.2.0] - 2026-06-27
 ### Added
 - `deploy --force`: explicit opt-in to overwrite an existing file at the target path. Without it, deploy logs a WARNING and skips rather than clobbering real user data with a same-named payload.

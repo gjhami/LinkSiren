@@ -51,3 +51,26 @@ linksiren deploy -t targets.txt -a 10.0.0.5 -n test.url --force ACME/admin:Pass
 # Avoid leaving an artifact on shares where you may lack delete permission
 linksiren deploy -t targets.txt -a 10.0.0.5 -n test.url --probe-delete ACME/admin:Pass
 ```
+
+## EFS coercion (`--encrypt`)
+
+Wakes the triggered-start EFS service on the target host so
+`\PIPE\efsrpc` becomes available for follow-on coercion (Coercer,
+PetitPotam, etc).
+
+| Flag | Default | Description |
+|---|---|---|
+| `--encrypt` | off | Trigger EFS service startup as part of the deploy. The exact trigger mechanism is selected by `--encrypt-target`. |
+| `--encrypt-target` | `payload` | `payload`: pass `FILE_ATTRIBUTE_ENCRYPTED` (0x4000) on the SMB CREATE for the payload itself, then call `EfsRpcDecryptFileSrv` so the payload lands plaintext. `existing`: write the payload plain, briefly create+delete a hidden throwaway file with the encryption bit to wake EFS, then EFSR-encrypt+decrypt the smallest non-empty existing file in the target folder. |
+| `--encrypt-keep` | off | Skip the EFSR decrypt after the encrypt. Payload is left visibly EFS-encrypted on disk (attribute `Ae`). Useful when you want to leave the trigger artifact visible for blue-team awareness. |
+
+### Sidecar files
+
+- `encrypt_triggered_hosts.txt`: hosts where `--encrypt` was used at least once during this run. Used by later cleanup tooling to know which hosts may need post-engagement EFS state reasoning.
+
+### Privileges
+
+The caller's account needs an EFS certificate to perform encrypt /
+decrypt operations. Domain `vagrant` users on standard GOAD-Light
+configurations have one; built-in `Administrator` typically does
+not unless explicitly configured.
