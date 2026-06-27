@@ -185,13 +185,86 @@ class HostTarget:
     # ------------------------------------------------------------------ #
     # Payload write / delete                                             #
     # ------------------------------------------------------------------ #
-    def write_payload(self, path: str, payload_name: str, payload: bytes):
+    def _file_exists(self, share: str, payload_path: str) -> bool:
+        """Return True iff a file already exists at ``share\\payload_path``."""
+        try:
+            entries = self.connection.listPath(share, payload_path)
+            # listPath of an exact-file path returns the file's own entry
+            # when present, and raises SMB SessionError when absent.
+            for entry in entries:
+                if not entry.is_directory():
+                    return True
+            return False
+        except Exception:
+            return False
+
+    def _probe_writable_and_deletable(self, share: str, folder: str) -> bool:
+        """Return True if we can both create and delete a tiny file at ``folder``.
+
+        Writes a uniquely-named zero-byte probe and immediately deletes it.
+        Used to avoid the failure mode where deploy can create a payload
+        but cleanup cannot remove it, leaving an orphan on the share.
+
+        Any SMB error during either step returns False. On success the
+        probe is gone from the share.
+        """
+        import secrets
+
+        logger = logging.getLogger("main_logger")
+        probe_name = f".linksiren_probe_{secrets.token_hex(4)}"
+        probe_path = f"{folder}\\{probe_name}" if folder else probe_name
+        unc = f"\\\\{self.host}\\{share}\\{probe_path}"
+
+        tree_id = None
+        try:
+            tree_id = self.connection.connectTree(share=share)
+            fh = self.connection.createFile(tree_id, probe_path)
+            self.connection.closeFile(treeId=tree_id, fileId=fh)
+            self.connection.deleteFile(shareName=share, pathName=probe_path)
+            return True
+        except Exception as e:
+            logger.warning(
+                "Probe write/delete failed; skipping real payload.",
+                extra={"path": unc, "exception": str(e)},
+            )
+            # Best-effort cleanup if create succeeded but delete failed.
+            try:
+                self.connection.deleteFile(shareName=share, pathName=probe_path)
+            except Exception:
+                pass
+            return False
+        finally:
+            if tree_id is not None:
+                try:
+                    self.connection.disconnectTree(tree_id)
+                except Exception:
+                    pass
+
+    def write_payload(
+        self,
+        path: str,
+        payload_name: str,
+        payload: bytes,
+        force: bool = False,
+        probe_delete: bool = False,
+    ):
         """Write ``payload`` to ``\\\\host\\path\\payload_name``.
 
         Returns the full UNC path on success, or ``None`` on any failure
         before the bytes were committed. A failure to close the file or
         disconnect the tree after the write is logged but still treated as
         success and returns the UNC path. The bytes are on disk.
+
+        Safety options (both default off for backwards compatibility):
+
+        * ``force=False`` refuses to overwrite an existing file at the
+          destination and logs a WARNING. The safe default in a pentest
+          is to never silently overwrite real user data with a payload
+          that happens to share its name.
+        * ``probe_delete=True`` writes a small uniquely-named probe file
+          first and tries to delete it; the real payload is only
+          written if the probe round-trip succeeds. Avoids leaving
+          orphans on shares where the pentester can write but not delete.
         """
         share = path.split("\\")[0]
         folder = "\\".join(path.split("\\")[1:])
@@ -208,6 +281,16 @@ class HostTarget:
                 "Failed to write payload. Not connected to host",
                 extra={"path": f"\\\\{self.host}"},
             )
+            return None
+
+        if not force and self._file_exists(share, payload_path):
+            logger.warning(
+                "Refusing to overwrite existing file. Pass --force to overwrite.",
+                extra={"path": full_path},
+            )
+            return None
+
+        if probe_delete and not self._probe_writable_and_deletable(share, folder):
             return None
 
         try:

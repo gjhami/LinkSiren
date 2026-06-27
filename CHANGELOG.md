@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-27
+### Added
+- `deploy --force`: explicit opt-in to overwrite an existing file at the target path. Without it, deploy logs a WARNING and skips rather than clobbering real user data with a same-named payload.
+- `deploy --invisible`: cosmetic Desktop-placement transform. Prepends `U+200B` (ZERO WIDTH SPACE) to the filename so the label below the icon renders empty, and blanks the `<iconReference>` / `IconFile` / `IconIndex` inside `.library-ms` / `.searchConnector-ms` / `.url` payloads so the tile renders transparent. Does NOT set `FILE_ATTRIBUTE_HIDDEN` (which would hide the file from Explorer's enumeration and break the coercion trigger).
+- `deploy --probe-delete`: write a uniquely-named probe file first and try to delete it before the real payload. Skips the real write if the probe round-trip fails, avoiding undeletable artifacts on shares where the pentester has write but not delete permission.
+- `docs/AUTHENTICATION.md` and `docs/DEPLOY.md` (new). README now links to `docs/` for per-area reference.
+
+### Changed
+- README slimmed: the inline `# Authentication` section is now `docs/AUTHENTICATION.md`. A new `# Features` block at the top of the file links into `docs/`.
+
 ## [0.1.0] - 2026-06-26
 ### Added
 - Pass-the-Hash authentication via `-no-pass -hashes LMHASH:NTHASH` (bare NT hash form, no colon, also accepted).

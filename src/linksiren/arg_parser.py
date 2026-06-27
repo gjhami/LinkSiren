@@ -256,6 +256,33 @@ def parse_args():
         "payload file ending in .library-ms, .searchConnector-ms, .lnk, "
         "or .url",
     )
+    deploy_parser.add_argument(
+        "--force",
+        action="store_true",
+        default=False,
+        help="Overwrite an existing file at the target path. Without this "
+        "flag, deploy logs a WARNING and skips rather than clobbering real "
+        "user data with a same-named payload.",
+    )
+    deploy_parser.add_argument(
+        "--invisible",
+        action="store_true",
+        default=False,
+        help="Prepend U+200B (ZERO WIDTH SPACE) to the filename and blank "
+        "icon references in the payload body so the deployed file renders "
+        "as an unlabeled, transparent tile on a Desktop. Does NOT hide the "
+        "file (FILE_ATTRIBUTE_HIDDEN would break the coercion trigger).",
+    )
+    deploy_parser.add_argument(
+        "--probe-delete",
+        action="store_true",
+        dest="probe_delete",
+        default=False,
+        help="Write a uniquely-named probe file at each target folder and "
+        "delete it before writing the real payload. Skips the real write if "
+        "the probe round-trip fails. Avoids leaving undeletable artifacts on "
+        "shares where the pentester has write but not delete permission.",
+    )
     _add_auth_args(deploy_parser)
 
     # Arguments for cleaning up deployed payloads when finished

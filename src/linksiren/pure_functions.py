@@ -9,7 +9,56 @@ bulk cleanup multiple types of payloads from the identified locations.
 from datetime import datetime, timedelta
 from pathlib import Path
 import logging
+import re
 import linksiren.target
+
+
+# ZERO WIDTH SPACE. NTFS at the filesystem level accepts ASCII control
+# characters (\x01-\x1F), but Windows' SMB2 server (verified on Win11 25H2)
+# rejects all of them at the path-validation layer with
+# STATUS_OBJECT_NAME_INVALID. U+200B is accepted by SMB and renders as no
+# glyph in Explorer, giving an effectively invisible filename.
+INVISIBLE_PREFIX = "​"
+
+
+def make_invisible_payload_name(payload_name: str) -> str:
+    """Prepend ``INVISIBLE_PREFIX`` to ``payload_name`` once (idempotent)."""
+    if payload_name and payload_name.startswith(INVISIBLE_PREFIX):
+        return payload_name
+    return INVISIBLE_PREFIX + payload_name
+
+
+def make_invisible_payload_contents(payload_contents, payload_extension: str):
+    """Blank icon references inside a text payload so the tile renders empty.
+
+    Returns ``payload_contents`` unchanged for binary payloads (``.lnk``).
+    Invisibility for .lnk would require modifying the binary template's
+    icon offset and is not implemented here.
+    """
+    if payload_extension == ".lnk":
+        return payload_contents
+
+    contents = payload_contents
+
+    if payload_extension in (".library-ms", ".searchConnector-ms"):
+        # XML payloads. Strip the iconReference element so Explorer falls
+        # back to the empty/blank default icon.
+        contents = re.sub(
+            r"\s*<iconReference>[^<]*</iconReference>",
+            "",
+            contents,
+            flags=re.IGNORECASE,
+        )
+    elif payload_extension == ".url":
+        # INI-style payload. Drop IconFile= and IconIndex= lines.
+        contents = re.sub(
+            r"^\s*Icon(File|Index)\s*=.*\r?\n?",
+            "",
+            contents,
+            flags=re.IGNORECASE | re.MULTILINE,
+        )
+
+    return contents
 
 
 def process_targets(unc_paths: list):
