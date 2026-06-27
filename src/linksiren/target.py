@@ -47,10 +47,16 @@ class HostTarget:
 
         The authentication path is chosen from ``credentials``:
 
-        * ``credentials.use_kerberos`` → ``SMBConnection.kerberosLogin`` (a
-          ccache referenced by ``$KRB5CCNAME`` is honored automatically by
-          Impacket when no TGT/TGS is supplied).
-        * otherwise → ``SMBConnection.login`` with password and/or NTLM hash.
+        * ``credentials.anonymous`` -> ``SMBConnection.login`` with empty
+          user / password / domain (NULL session). Most modern hosts deny
+          this, but it is the right probe for "test for anonymous access
+          to shares" recon.
+        * ``credentials.use_kerberos`` -> ``SMBConnection.kerberosLogin``
+          (a ccache referenced by ``$KRB5CCNAME`` is honored automatically
+          by Impacket when no TGT/TGS is supplied). When the target host
+          is an IP literal, an attempt is made to reverse-DNS it to an
+          FQDN so the cifs/<host> SPN can be located.
+        * otherwise -> ``SMBConnection.login`` with password and/or NTLM hash.
         """
         logger = logging.getLogger("main_logger")
 
@@ -59,8 +65,40 @@ class HostTarget:
             # connection that was passed in at construction.
             return
 
+        # Kerberos SPN lookup needs an FQDN, not an IP. If Kerberos is in
+        # use and self.host is an IP, try reverse DNS so cifs/<host> can
+        # resolve. Keep the original IP as the network endpoint
+        # (remoteHost) but expose the FQDN as remoteName so the SPN is
+        # constructed right.
+        remote_name = self.host
+        if getattr(credentials, "use_kerberos", False):
+            import ipaddress, socket
+            try:
+                ipaddress.ip_address(self.host)
+                try:
+                    primary, aliases, _ = socket.gethostbyaddr(self.host)
+                    candidates = [n for n in [primary] + list(aliases) if "." in n]
+                    if candidates:
+                        remote_name = candidates[0]
+                        logger.info(
+                            "-k against IP target; resolved %s -> %s for the "
+                            "cifs SPN. If KDC rejects, list the host by "
+                            "exact-FQDN in the targets file.",
+                            self.host, remote_name,
+                            extra={"path": f"\\\\{self.host}"},
+                        )
+                except (socket.herror, socket.gaierror) as e:
+                    logger.warning(
+                        "-k against IP target and reverse DNS failed (%s); "
+                        "Kerberos may reject with KDC_ERR_S_PRINCIPAL_UNKNOWN. "
+                        "Use FQDN UNC paths in your targets file.", e,
+                        extra={"path": f"\\\\{self.host}"},
+                    )
+            except ValueError:
+                pass  # self.host is already a hostname
+
         try:
-            self.connection = SMBConnection(remoteName=self.host, remoteHost=self.host)
+            self.connection = SMBConnection(remoteName=remote_name, remoteHost=self.host)
         except SessionError as e:
             logger.error(
                 "Failed to connect to host.",
@@ -70,7 +108,10 @@ class HostTarget:
             return
 
         try:
-            if getattr(credentials, "use_kerberos", False):
+            if getattr(credentials, "anonymous", False):
+                # NULL session: empty user, empty password, empty domain.
+                self.connection.login("", "", "", "", "", ntlmFallback)
+            elif getattr(credentials, "use_kerberos", False):
                 self.connection.kerberosLogin(
                     user=credentials.username,
                     password=credentials.password,

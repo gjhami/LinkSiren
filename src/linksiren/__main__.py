@@ -43,6 +43,7 @@ class AuthContext:
     kdc_host: str | None = None
     use_kerberos: bool = False
     no_pass: bool = False
+    anonymous: bool = False
 
 
 # Backwards-compatible alias. Older callers/tests import ``Credentials``.
@@ -67,9 +68,28 @@ def _build_auth_context(args) -> AuthContext:
     """Build an :class:`AuthContext` from parsed CLI arguments.
 
     ``generate`` mode has no credentials and yields an empty context.
+    ``--anonymous`` yields an empty context with ``anonymous=True`` so the
+    SMB layer attempts a NULL session.
     """
     if "credentials" not in args:
         return AuthContext()
+
+    if getattr(args, "anonymous", False):
+        if args.credentials:
+            print(
+                "error: --anonymous and a positional credentials argument are "
+                "mutually exclusive. Drop one.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        return AuthContext(anonymous=True)
+
+    if not args.credentials:
+        print(
+            "error: credentials are required unless --anonymous is set.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
 
     domain, username, password = parse_credentials(args.credentials)
     lmhash, nthash = _parse_hashes(getattr(args, "hashes", None))

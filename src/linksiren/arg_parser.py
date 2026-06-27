@@ -18,6 +18,14 @@ def _add_auth_args(subparser: argparse.ArgumentParser) -> None:
     """
     auth_group = subparser.add_argument_group("Authentication")
     auth_group.add_argument(
+        "--anonymous",
+        action="store_true",
+        default=False,
+        help="Attempt anonymous (NULL-session) SMB. Useful for share-enum "
+        "recon against misconfigured hosts. Positional 'credentials' must be "
+        "omitted when --anonymous is set.",
+    )
+    auth_group.add_argument(
         "-hashes",
         action="store",
         metavar="LMHASH:NTHASH",
@@ -91,7 +99,7 @@ def parse_args():
     )
     rank_required_group = rank_parser.add_argument_group("Required Arguments")
     rank_required_group.add_argument(
-        "credentials", help="[domain/]username[:password] for authentication"
+        "credentials", nargs="?", help="[domain/]username[:password] for authentication. Omit when --anonymous is set."
     )
     rank_required_group.add_argument(
         "-t",
@@ -155,7 +163,7 @@ def parse_args():
     )
     identify_required_group = identify_parser.add_argument_group("Required Arguments")
     identify_required_group.add_argument(
-        "credentials", help="[domain/]username[:password] for authentication"
+        "credentials", nargs="?", help="[domain/]username[:password] for authentication. Omit when --anonymous is set."
     )
     identify_required_group.add_argument(
         "-t",
@@ -225,7 +233,7 @@ def parse_args():
     )
     deploy_required_group = deploy_parser.add_argument_group("Required Arguments")
     deploy_required_group.add_argument(
-        "credentials", help="[domain/]username[:password] for authentication"
+        "credentials", nargs="?", help="[domain/]username[:password] for authentication. Omit when --anonymous is set."
     )
     deploy_required_group.add_argument(
         "-a",
@@ -257,7 +265,7 @@ def parse_args():
     )
     cleanup_required_group = cleanup_parser.add_argument_group("Required Arguments")
     cleanup_required_group.add_argument(
-        "credentials", help="[domain/]username[:password] for authentication"
+        "credentials", nargs="?", help="[domain/]username[:password] for authentication. Omit when --anonymous is set."
     )
     cleanup_parser.add_argument(
         "-t",
