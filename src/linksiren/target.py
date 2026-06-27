@@ -223,6 +223,45 @@ def _efsr_decrypt_remote(smb_connection, unc_path: str, logger=None) -> None:
     _efsr_call(smb_connection, req, logger=logger)
 
 
+def _webclient_service_is_running(smb_connection, logger=None) -> bool | None:
+    """Probe whether the WebClient service is running on the SMB host.
+
+    HTTP coercion via .searchConnector-ms / .library-ms payloads needs the
+    WebClient service running (it's the service that turns ``http://...``
+    references in those files into actual SMB-via-HTTP auth requests). The
+    service exposes ``\\PIPE\\DAV RPC SERVICE`` while running, so the same
+    pipe-open probe pattern that works for EFS works here.
+
+    Returns: True (running), False (Stopped), None (ambiguous).
+    """
+    try:
+        tid = smb_connection.connectTree("IPC$")
+    except Exception as e:
+        if logger:
+            logger.debug("WebClient probe: IPC$ tree connect failed: %s", e)
+        return None
+    try:
+        try:
+            fid = smb_connection.openFile(tid, r"\DAV RPC SERVICE")
+            try:
+                smb_connection.closeFile(tid, fid)
+            except Exception:
+                pass
+            return True
+        except Exception as e:
+            err = str(e)
+            if "STATUS_OBJECT_NAME_NOT_FOUND" in err or "STATUS_OBJECT_PATH_NOT_FOUND" in err:
+                return False
+            if logger:
+                logger.debug("WebClient probe: ambiguous openFile error: %s", e)
+            return None
+    finally:
+        try:
+            smb_connection.disconnectTree(tid)
+        except Exception:
+            pass
+
+
 def _dfs_resolve(smb_connection, dfs_path: str, logger=None) -> str | None:
     """Resolve a DFS namespace path to its physical backend UNC.
 
