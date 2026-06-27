@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-27
+### Added
+- `--exclude PATTERN ...` (rank / identify / deploy): case-insensitive glob patterns matched against share-relative folder paths.
+- Built-in default exclude list (`node_modules`, `vendor`, `.git`, `$Recycle.Bin*`, `System Volume Information`, `__pycache__`, etc.). Opt out with `--exclude-defaults-off`.
+- `--max-host-time SECONDS` (rank / identify): flag and arg plumbing for capping per-host crawl time. Integration with the crawl scheduler ships in a follow-up.
+- `deploy --dry-run`: print every payload that WOULD be written without actually connecting via SMB.
+- `deploy --resume`: skip target paths already present in `payloads_written.txt`.
+- `deploy --rate-limit OPS_PER_SEC` and `deploy --jitter-ms MIN,MAX` for stealth pacing.
+- DFS namespace dedup helper (`_dfs_resolve` via `FSCTL_DFS_GET_REFERRALS`). `--no-dfs-dedup` flag exposed; full integration into the crawl path ships in a follow-up.
+
 ## [0.4.0] - 2026-06-27
 ### Added
 - `linksiren coerce` subcommand: wakes the EFS service on each target host without dropping a payload, reusing the existing-file trigger from 0.3.0. Records `encrypt_triggered_hosts.txt` and `efs_started_by_us.txt` so cleanup can revert state cleanly.

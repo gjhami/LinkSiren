@@ -164,6 +164,28 @@ def parse_args():
         "simultaneous connections to the same host and concurrent processing "
         "will not accelerate crawling multiple shares on a single host.",
     )
+    rank_parser.add_argument(
+        "-x", "--exclude", nargs="+", default=[],
+        help="(Default: none) Glob patterns matched against the share-relative "
+        "folder path (case-insensitive). Folders that match are skipped during "
+        "the crawl. Example: -x '*backup*' '*archive*' '$Recycle.Bin*'.",
+    )
+    rank_parser.add_argument(
+        "--exclude-defaults-off", action="store_true", default=False,
+        dest="exclude_defaults_off",
+        help="(Default: defaults ON) Do not auto-include the built-in noise "
+        "exclude list (node_modules, .git, $Recycle.Bin*, etc).",
+    )
+    rank_parser.add_argument(
+        "--max-host-time", type=int, default=0, dest="max_host_time",
+        help="(Default: 0 = unlimited) Abort the crawl on a single host once "
+        "this many seconds have elapsed and move on.",
+    )
+    rank_parser.add_argument(
+        "--no-dfs-dedup", action="store_true", default=False, dest="no_dfs_dedup",
+        help="(Default: dedup ON) Skip the DFS referral lookup that resolves "
+        "namespace paths to backend shares and deduplicates targets.",
+    )
     _add_auth_args(rank_parser)
 
     # Arguments for identifying and outputting UNC paths to optimal folders into which to place
@@ -247,6 +269,26 @@ def parse_args():
         "summarizing the identify run: input target count, output target "
         "count, and the full payload_targets list. Easy to pipe into jq or "
         "other tooling.",
+    )
+    identify_parser.add_argument(
+        "-x", "--exclude", nargs="+", default=[],
+        help="(Default: none) Glob patterns matched against the share-relative "
+        "folder path (case-insensitive). Folders that match are skipped during "
+        "the crawl.",
+    )
+    identify_parser.add_argument(
+        "--exclude-defaults-off", action="store_true", default=False,
+        dest="exclude_defaults_off",
+        help="(Default: defaults ON) Do not auto-include the built-in noise "
+        "exclude list.",
+    )
+    identify_parser.add_argument(
+        "--max-host-time", type=int, default=0, dest="max_host_time",
+        help="(Default: 0 = unlimited) Abort crawling a host after N seconds.",
+    )
+    identify_parser.add_argument(
+        "--no-dfs-dedup", action="store_true", default=False, dest="no_dfs_dedup",
+        help="(Default: dedup ON) Skip the DFS referral lookup and dedupe.",
     )
     _add_auth_args(identify_parser)
 
@@ -358,6 +400,42 @@ def parse_args():
         "plaintext and encrypts the smallest non-empty existing file in the "
         "target folder via EFSR — same trigger result, but the payload "
         "itself never carries an encryption attribute.",
+    )
+    deploy_parser.add_argument(
+        "--dry-run", action="store_true", default=False, dest="dry_run",
+        help="(Default: False) Print every payload that WOULD be written "
+        "(one UNC path per line on stdout) without actually connecting via SMB.",
+    )
+    deploy_parser.add_argument(
+        "-x", "--exclude", nargs="+", default=[],
+        help="(Default: none) Glob patterns matched against each target's "
+        "share-relative folder path (case-insensitive). Matching targets are "
+        "skipped before any SMB write.",
+    )
+    deploy_parser.add_argument(
+        "--exclude-defaults-off", action="store_true", default=False,
+        dest="exclude_defaults_off",
+        help="(Default: defaults ON) Do not auto-include the built-in noise "
+        "exclude list.",
+    )
+    deploy_parser.add_argument(
+        "--resume", action="store_true", default=False,
+        help="(Default: False) Skip target paths already present in "
+        "payloads_written.txt. Useful for resuming an interrupted deploy.",
+    )
+    deploy_parser.add_argument(
+        "--rate-limit", type=float, default=0.0, dest="rate_limit",
+        help="(Default: 0 = unlimited) Cap deploy SMB writes at N "
+        "operations per second across the run.",
+    )
+    deploy_parser.add_argument(
+        "--jitter-ms", default="", dest="jitter_ms",
+        help="(Default: none) `MIN,MAX` (milliseconds) random jitter sleep "
+        "between SMB writes. Pairs with --rate-limit for stealth pacing.",
+    )
+    deploy_parser.add_argument(
+        "--no-dfs-dedup", action="store_true", default=False, dest="no_dfs_dedup",
+        help="(Default: dedup ON) Skip the DFS referral lookup and dedupe.",
     )
     _add_auth_args(deploy_parser)
 

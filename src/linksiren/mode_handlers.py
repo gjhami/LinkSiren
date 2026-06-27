@@ -219,19 +219,86 @@ def handle_deploy(args, credentials):
     encrypt_keep = getattr(args, "encrypt_keep", False)
     encrypt_target = getattr(args, "encrypt_target", "payload")
     probe_delete = getattr(args, "probe_delete", False)
-    encrypt_hosts = set()  # Hosts that received an --encrypt payload
-    efs_was_stopped = set()  # Hosts where EFS was confirmed-Stopped pre-deploy
+    encrypt_hosts = set()
+    efs_was_stopped = set()
+
+    # PR 6: --exclude / --exclude-defaults-off / --dry-run / --resume /
+    # --rate-limit / --jitter-ms
+    from linksiren.pure_functions import path_matches_exclude, DEFAULT_EXCLUDE_PATTERNS
+    exclude_patterns = list(getattr(args, "exclude", []) or [])
+    if not getattr(args, "exclude_defaults_off", False):
+        exclude_patterns = list(DEFAULT_EXCLUDE_PATTERNS) + exclude_patterns
+    dry_run = getattr(args, "dry_run", False)
+    resume = getattr(args, "resume", False)
+    rate_limit = float(getattr(args, "rate_limit", 0.0) or 0.0)
+    min_interval = (1.0 / rate_limit) if rate_limit > 0 else 0.0
+    jitter_raw = getattr(args, "jitter_ms", "") or ""
+    jitter_lo = jitter_hi = 0
+    if jitter_raw:
+        try:
+            lo_s, hi_s = jitter_raw.split(",", 1)
+            jitter_lo, jitter_hi = int(lo_s), int(hi_s)
+            if jitter_lo < 0 or jitter_hi < jitter_lo:
+                raise ValueError("MIN must be >= 0 and <= MAX")
+        except Exception as e:
+            print(f"error: --jitter-ms expects MIN,MAX milliseconds; got {jitter_raw!r} ({e})", file=sys.stderr)
+            sys.exit(2)
+
+    # --resume: read payloads_written.txt and skip target *folders* already done.
+    already_done = set()
+    if resume:
+        try:
+            with open("payloads_written.txt", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    parts = line.rsplit("\\", 1)
+                    if len(parts) == 2:
+                        already_done.add(parts[0])
+        except FileNotFoundError:
+            pass
+
+    # Apply --exclude before any SMB activity.
+    if exclude_patterns:
+        for target in targets:
+            target.paths = [p for p in target.paths if not path_matches_exclude(p, exclude_patterns)]
+
+    # --dry-run: print the planned writes and bail.
+    if dry_run:
+        planned = []
+        for target in targets:
+            for path in target.paths:
+                planned.append(f"\\\\{target.host}\\{path}\\{payload_name}")
+        print(f"DRY RUN. Would write {len(planned)} payload(s):")
+        for p in planned:
+            print(f"  {p}")
+        return
+
+    import time, random
+    last_write = 0.0
     for target in targets:
         target.connect(credentials)
-        # Snapshot EFS state BEFORE any encrypt work so cleanup --stop-efs
-        # only stops services we actually woke. Uses the SMB session that's
-        # already established for the deploy.
         if encrypt and target.connection is not None:
             from linksiren.target import _efs_service_is_running
             initial = _efs_service_is_running(target.connection)
             if initial is False:
                 efs_was_stopped.add(target.host)
         for path in target.paths:
+            folder_unc = f"\\\\{target.host}\\{path}"
+            if resume and folder_unc in already_done:
+                logging.getLogger("main_logger").info(
+                    "deploy --resume: skipping target already in payloads_written.txt",
+                    extra={"path": folder_unc},
+                )
+                continue
+            if min_interval > 0:
+                elapsed = time.monotonic() - last_write
+                wait = min_interval - elapsed
+                if wait > 0:
+                    time.sleep(wait)
+            if jitter_hi > 0:
+                time.sleep(random.uniform(jitter_lo, jitter_hi) / 1000.0)
             new_payload_path = target.write_payload(
                 path=path,
                 payload_name=payload_name,
@@ -242,6 +309,7 @@ def handle_deploy(args, credentials):
                 encrypt_target=encrypt_target,
                 probe_delete=probe_delete,
             )
+            last_write = time.monotonic()
             if new_payload_path is not None:
                 payloads_written.append(new_payload_path)
                 if encrypt:
