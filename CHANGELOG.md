@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-06-27
+### Added
+- `linksiren listen`: HTTP confirmation listener that captures NTLMSSP Type-1 / Type-3 from coercion attempts. Optional `--blobs-dir` saves Type-3 blob bodies for hashcat / ntlmrelayx hand-off.
+- `linksiren detect`: blue-team payload scanner. Walks SMB shares and flags files matching coercion-payload signatures with severity, embedded URL, and attacker host. Allowlist support via `--include-host-allowlist`.
+- `linksiren report`: generate `engagement_report.md` from sidecars (`payloads_written.txt`, `encrypt_triggered_hosts.txt`, `efs_started_by_us.txt`, `payloads_not_deleted.txt`, `detect_findings.txt`, `coerce_captures.log`) plus `linksiren.log`.
+- `docs/subcommands/{listen,detect,report}.md` and `docs/TROUBLESHOOTING.md`.
+
+### Changed
+- README restructured: AI-first prose section at the top covering the typical agent prompt; expanded Features list linking into `docs/`.
+
 ## [0.9.1] - 2026-06-27
 ### Added
 - `cleanup --stop-webclient`: stop the WebClient service via MS-SCMR after deleting payloads. Unlike EFS, WebClient accepts SCMR STOP under normal Windows configuration.
