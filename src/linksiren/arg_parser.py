@@ -238,6 +238,16 @@ def parse_args():
         "simultaneous connections to the same host and concurrent processing "
         "will not accelerate crawling multiple shares on a single host.",
     )
+    identify_parser.add_argument(
+        "--json",
+        action="store_true",
+        default=False,
+        dest="json_output",
+        help="(Default: False) Emit a single-line JSON document on stdout "
+        "summarizing the identify run: input target count, output target "
+        "count, and the full payload_targets list. Easy to pipe into jq or "
+        "other tooling.",
+    )
     _add_auth_args(identify_parser)
 
     # Arguments for deploying poisoned files to specified locations
@@ -328,6 +338,16 @@ def parse_args():
         "Applies to whichever file --encrypt-target points at.",
     )
     deploy_parser.add_argument(
+        "--json",
+        action="store_true",
+        default=False,
+        dest="json_output",
+        help="(Default: False) Emit a single-line JSON document on stdout "
+        "summarizing the deploy run: payloads attempted, payloads written, "
+        "hosts where --encrypt fired, and hosts where EFS was initially "
+        "Stopped (and thus eligible for cleanup --stop-efs).",
+    )
+    deploy_parser.add_argument(
         "--encrypt-target",
         choices=("payload", "existing"),
         default="payload",
@@ -340,6 +360,33 @@ def parse_args():
         "itself never carries an encryption attribute.",
     )
     _add_auth_args(deploy_parser)
+
+    # Arguments for the standalone EFS-coercion-trigger mode.
+    coerce_parser = subparsers.add_parser(
+        "coerce",
+        description="Wake the triggered-start EFS service on each target "
+        "host so \\PIPE\\efsrpc becomes available for follow-on coercion "
+        "(Coercer, PetitPotam). Does not deploy any payload — uses an "
+        "existing file in the target share as the encrypt/decrypt trigger "
+        "subject. Pair with linksiren cleanup --stop-efs to return targets "
+        "to their original state.",
+    )
+    coerce_required_group = coerce_parser.add_argument_group("Required Arguments")
+    coerce_required_group.add_argument(
+        "credentials",
+        nargs="?",
+        help="[domain/]username[:password] for authentication. Omit when "
+        "--anonymous is set.",
+    )
+    coerce_required_group.add_argument(
+        "-t",
+        "--targets",
+        required=True,
+        help="Path to a text file containing UNC paths to share folders "
+        "(one per line) where the EFS trigger should fire. Each line should "
+        "name a folder with at least one non-empty existing file.",
+    )
+    _add_auth_args(coerce_parser)
 
     # Arguments for cleaning up deployed payloads when finished
     cleanup_parser = subparsers.add_parser(
@@ -359,6 +406,18 @@ def parse_args():
         default="payloads_written.txt",
         help="(Default: 'payloads_written.txt') Path to a text file containing UNC "
         "paths poisoned files to clean up.",
+    )
+    cleanup_parser.add_argument(
+        "--stop-efs",
+        action="store_true",
+        default=False,
+        dest="stop_efs",
+        help="(Default: False) After deleting payloads, stop the EFS service "
+        "on hosts where (a) deploy recorded EFS as Stopped before our "
+        "--encrypt trigger fired, AND (b) EFS is currently Running. Uses "
+        "MS-SCMR over \\PIPE\\svcctl. Hosts where EFS was already Running "
+        "pre-deploy are deliberately left alone. Requires the calling "
+        "account to have privilege to stop services on the target.",
     )
     _add_auth_args(cleanup_parser)
 
