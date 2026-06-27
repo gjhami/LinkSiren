@@ -439,6 +439,58 @@ def parse_args():
     )
     _add_auth_args(deploy_parser)
 
+    # Arguments for target-sessions: per-host enum of real users, drop in
+    # each matching user's Desktop.
+    sessions_parser = subparsers.add_parser(
+        "target-sessions",
+        description="For each host: open C$\\Users, filter to real users by "
+        "case-insensitive regex, and write the payload into each matching "
+        "user's Desktop folder. Reuses every deploy flag. Requires admin on "
+        "each target host (C$ access).",
+    )
+    sessions_required = sessions_parser.add_argument_group("Required Arguments")
+    sessions_required.add_argument(
+        "credentials", nargs="?",
+        help="[domain/]username[:password] for SMB auth.",
+    )
+    sessions_required.add_argument(
+        "-t", "--targets", required=True,
+        help="Path to a text file with target hosts, one per line, in `\\\\<host>` form.",
+    )
+    sessions_required.add_argument(
+        "-n", "--payload", required=True,
+        help="Payload filename (extension .url / .lnk / .library-ms / .searchConnector-ms).",
+    )
+    sessions_required.add_argument(
+        "-a", "--attacker", required=True,
+        help="Attacker IP for the embedded URL/UNC in the payload.",
+    )
+    sessions_parser.add_argument(
+        "--users", default=".*",
+        help="(Default: '.*') Case-insensitive regex matched against each user under C$\\Users.",
+    )
+    sessions_parser.add_argument(
+        "--users-file", dest="users_file",
+        help="(Default: none) Path to a file containing one regex per line; merged with --users.",
+    )
+    sessions_parser.add_argument(
+        "--public-desktop", action="store_true", default=False, dest="public_desktop",
+        help="(Default: False) Also drop in C:\\Users\\Public\\Desktop.",
+    )
+    # Reuse deploy flags so target-sessions composes naturally.
+    sessions_parser.add_argument("-F", "--force", action="store_true", default=False)
+    sessions_parser.add_argument("--invisible", action="store_true", default=False)
+    sessions_parser.add_argument("--probe-delete", action="store_true", default=False, dest="probe_delete")
+    sessions_parser.add_argument("--encrypt", action="store_true", default=False)
+    sessions_parser.add_argument("--encrypt-keep", action="store_true", default=False, dest="encrypt_keep")
+    sessions_parser.add_argument("--encrypt-target", choices=("payload", "existing"), default="payload", dest="encrypt_target")
+    sessions_parser.add_argument("--dry-run", action="store_true", default=False, dest="dry_run")
+    sessions_parser.add_argument("--resume", action="store_true", default=False)
+    sessions_parser.add_argument("--rate-limit", type=float, default=0.0, dest="rate_limit")
+    sessions_parser.add_argument("--jitter-ms", default="", dest="jitter_ms", metavar="MIN,MAX")
+    sessions_parser.add_argument("--json", action="store_true", default=False, dest="json_output")
+    _add_auth_args(sessions_parser)
+
     # Arguments for AD computer discovery via LDAP.
     discover_parser = subparsers.add_parser(
         "discover",

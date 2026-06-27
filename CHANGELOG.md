@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-27
+### Added
+- `linksiren target-sessions`: per-host, enumerate real users under `C$\Users` and drop the payload in each matching user`s Desktop folder. Selectors: `--users <regex>` (default `.*`), `--users-file <path>`, `--public-desktop`. Reuses every deploy flag (encrypt, invisible, probe-delete, dry-run, resume, rate-limit, jitter).
+- `target._enumerate_user_desktops` + `SYSTEM_USER_FOLDERS` constant: enumerates user-Desktop paths under C$\Users with case-insensitive regex filtering and system-folder exclusion.
+
 ## [0.7.0] - 2026-06-27
 ### Added
 - `linksiren discover`: enumerate computer objects from Active Directory via LDAP. Filters disabled accounts; optional `--inactive-days N` drops dormant hosts. Emits one `\\<dnsHostName>` UNC per line (or bare hostnames with `--hostname-only`). Supports `--ldaps`, `--base-dn`, `-o PATH`, `--json`.
