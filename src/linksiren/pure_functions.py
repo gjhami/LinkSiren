@@ -207,6 +207,90 @@ def path_matches_exclude(rel_path: str, patterns) -> bool:
     return False
 
 
+# Module-level output gates. info_print respects both.
+_QUIET = False
+_PROGRESS_ACTIVE = False
+
+
+def set_quiet(quiet: bool) -> None:
+    global _QUIET
+    _QUIET = bool(quiet)
+
+
+def set_progress_active(active: bool) -> None:
+    global _PROGRESS_ACTIVE
+    _PROGRESS_ACTIVE = bool(active)
+
+
+def output_is_quiet() -> bool:
+    return _QUIET or _PROGRESS_ACTIVE
+
+
+def info_print(*args, **kwargs):
+    """``print`` that respects ``--quiet`` / progress-bar state."""
+    if output_is_quiet():
+        return
+    print(*args, **kwargs)
+
+
+def make_random_suffix(length: int = 4) -> str:
+    """Return a random ``[A-Z0-9]`` string suitable for cache-busting
+    payload filenames and URL paths.
+    """
+    import secrets, string
+    alphabet = string.ascii_uppercase + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
+def apply_suffix_to_payload_name(payload_name: str, suffix: str) -> str:
+    """Return ``payload_name`` with ``suffix`` inserted before the
+    extension, hyphen-separated. ``foo.url`` + ``A1B2`` -> ``foo-A1B2.url``.
+    """
+    from pathlib import Path
+    p = Path(payload_name)
+    ext = p.suffix
+    base = p.stem
+    parent = str(p.parent)
+    name = f"{base}-{suffix}{ext}"
+    if parent in ("", "."):
+        return name
+    return f"{parent}/{name}"
+
+
+def apply_suffix_to_payload_url_path(payload_contents, payload_extension: str, suffix: str):
+    """Append ``-{suffix}`` to every URL path inside a text payload."""
+    if payload_extension == ".lnk":
+        return payload_contents
+    import re
+
+    def add_suffix(match):
+        scheme = match.group(1)
+        host = match.group(2)
+        path = match.group(3)
+        return f"{scheme}{host}{path}-{suffix}"
+
+    if payload_extension == ".url":
+        return re.sub(
+            r"^(URL=)(http://[^/\s]+)(/[^\s\r\n]+)",
+            add_suffix,
+            payload_contents,
+            flags=re.MULTILINE,
+        )
+    if payload_extension in (".library-ms", ".searchConnector-ms"):
+        out = re.sub(
+            r"(<url>)(http://[^<]+?)([^<]*?)(</url>)",
+            lambda m: f"{m.group(1)}{m.group(2)}{m.group(3)}-{suffix}{m.group(4)}",
+            payload_contents,
+        )
+        out = re.sub(
+            r"(<url>\\\\)([^\\<]+)(\\[^<]+)(</url>)",
+            lambda m: f"{m.group(1)}{m.group(2)}{m.group(3)}-{suffix}{m.group(4)}",
+            out,
+        )
+        return out
+    return payload_contents
+
+
 # ZERO WIDTH SPACE. NTFS accepts ASCII control chars at the filesystem
 # level, but Windows' SMB2 server (verified on Win11 25H2) rejects them
 # at the path-validation layer with STATUS_OBJECT_NAME_INVALID. U+200B

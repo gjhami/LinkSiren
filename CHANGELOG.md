@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-06-27
+### Added
+- `deploy --randomize-suffix`: per-file 4-char `[A-Z0-9]` suffix on filename AND every URL path in the payload, defeats Explorer / WebDAV / browser per-name caches.
+- `deploy --template PATH` (also `target-sessions --template`): custom template file. Extension must match `-n`.
+- `deploy --max-concurrency N` and `cleanup --max-concurrency N`: flag plumbing for per-host parallelism. Default 1 = serial.
+- Top-level `-q` / `--quiet`: gate `pure_functions.info_print` so informational stdout is suppressed; warnings, errors, and explicit `--json` / dry-run output still print.
+
+### Changed
+- Deploy emits a WARNING at start time when `-a` is an IP literal or FQDN (which land in the Internet zone). Use a bare hostname or pre-stage ZoneMap entries.
+
 ## [0.8.0] - 2026-06-27
 ### Added
 - `linksiren target-sessions`: per-host, enumerate real users under `C$\Users` and drop the payload in each matching user`s Desktop folder. Selectors: `--users <regex>` (default `.*`), `--users-file <path>`, `--public-desktop`. Reuses every deploy flag (encrypt, invisible, probe-delete, dry-run, resume, rate-limit, jitter).
