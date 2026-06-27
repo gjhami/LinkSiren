@@ -1,36 +1,68 @@
 """
 Author: George Hamilton
-This module provides a command-line interface (CLI) for identifying and rating folders in shares
-based on access frequency, deploying malicious URL files, and cleaning up results.
-Functions:
-    parse_args(): Parses command-line arguments and returns them as a namespace object.
-The CLI supports the following modes:
-    - generate: Outputs the specified payload file to the current directory instead of a remote
-                location.
-    - rank: Outputs identified subfolders and rankings to folder_rankings.txt.
-    - identify: Identifies target folders for payload distribution and outputs to
-                payload.txt.
-    - deploy: Deploys payloads to all folder UNC paths listed in the specified file.
-    - cleanup: Deletes poisoned files from folder UNC paths specified in the targets file.
-Each mode has its own set of required and optional arguments, which are detailed in the help
-message for each subcommand.
+Command-line interface for LinkSiren.
+
+Builds an :mod:`argparse` parser with five subcommands. ``generate``, ``rank``,
+``identify``, ``deploy``, ``cleanup``. Sharing a common set of authentication
+flags via :func:`_add_auth_args`.
 """
 
 import argparse
 
 
+def _add_auth_args(subparser: argparse.ArgumentParser) -> None:
+    """Add the shared password / hash / Kerberos auth flags to a subparser.
+
+    All non-``generate`` subcommands need these flags, and keeping a single
+    helper avoids drift across them.
+    """
+    auth_group = subparser.add_argument_group("Authentication")
+    auth_group.add_argument(
+        "--anonymous",
+        action="store_true",
+        default=False,
+        help="Attempt anonymous (NULL-session) SMB. Useful for share-enum "
+        "recon against misconfigured hosts. Positional 'credentials' must be "
+        "omitted when --anonymous is set.",
+    )
+    auth_group.add_argument(
+        "-hashes",
+        action="store",
+        metavar="LMHASH:NTHASH",
+        help="NTLM hashes for Pass-the-Hash, format is LMHASH:NTHASH. A bare "
+        "NT hash (no colon) is also accepted.",
+    )
+    auth_group.add_argument(
+        "-no-pass",
+        action="store_true",
+        dest="no_pass",
+        help="Do not prompt for / use the supplied password (useful with -k).",
+    )
+    auth_group.add_argument(
+        "-k",
+        action="store_true",
+        help="Use Kerberos authentication. Credentials are pulled from the "
+        "ccache file referenced by KRB5CCNAME. If a ccache lookup fails, the "
+        "command-line credentials (password / -hashes / -aesKey) are used.",
+    )
+    auth_group.add_argument(
+        "-aesKey",
+        action="store",
+        metavar="hex key",
+        help="AES key (128- or 256-bit, hex) to use for Kerberos authentication.",
+    )
+    auth_group.add_argument(
+        "-dc-ip",
+        action="store",
+        dest="dc_ip",
+        metavar="ip address",
+        help="IP address (or hostname) of the KDC / domain controller. If "
+        "omitted, the domain portion of the supplied credentials is used.",
+    )
+
+
 def parse_args():
-    """
-    Parses command-line arguments for the LinkSiren tool.
-    The tool supports multiple modes of operation, each with its own set of arguments:
-    - generate: Output specified payload file to the current directory instead of a remote location.
-    - rank: Output identified subfolders and rankings to folder_rankings.txt.
-    - identify: Identify target folders for payload distribution and output to payload_targets.txt.
-    - deploy: Deploy payloads to all folder UNC paths listed in the specified file.
-    - cleanup: Delete poisoned files from folder UNC paths specified in the targets file.
-    Returns:
-        argparse.Namespace: Parsed command-line arguments.
-    """
+    """Parse command-line arguments for the LinkSiren CLI."""
     parser = argparse.ArgumentParser(
         description="Identify and rate folders in shares based on access frequency, deploy "
         "malicious URL files, and cleanup results."
@@ -67,7 +99,7 @@ def parse_args():
     )
     rank_required_group = rank_parser.add_argument_group("Required Arguments")
     rank_required_group.add_argument(
-        "credentials", help="[domain/]username[:password] for authentication"
+        "credentials", nargs="?", help="[domain/]username[:password] for authentication. Omit when --anonymous is set."
     )
     rank_required_group.add_argument(
         "-t",
@@ -120,24 +152,7 @@ def parse_args():
         "simultaneous connections to the same host and concurrent processing "
         "will not accelerate crawling multiple shares on a single host.",
     )
-    # rank_parser.add_argument('-hashes', action="store", metavar = "LMHASH:NTHASH",
-    #                               help='NTLM hashes, format is LMHASH:NTHASH')
-    # rank_parser.add_argument('-no-pass', action="store_true",
-    #                               help='don\'t ask for password (useful for -k)')
-    # rank_parser.add_argument('-k', action="store_true",
-    #                               help='Use Kerberos authentication. Grabs credentials from
-    #                               'ccache file  (KRB5CCNAME) based on target parameters. If '
-    #                               'valid credentials cannot be found, it will use the ones '
-    #                               'specified in the command line')
-    # rank_parser.add_argument('-aesKey', action="store", metavar = "hex key",
-    #                               help='AES key to use for Kerberos Authentication '
-    #                               '(128 or 256 bits)')
-    # rank_parser.add_argument('-keytab', action="store",
-    #                               help='Read keys for SPN from keytab file')
-    # rank_parser.add_argument_group('connection')
-    # rank_parser.add_argument('-dc-ip', action='store',metavar = "ip address",
-    #                               help='IP Address of the domain controller. If ommited it use'
-    #                               'the domain part (FQDN) specified in the target parameter')
+    _add_auth_args(rank_parser)
 
     # Arguments for identifying and outputting UNC paths to optimal folders into which to place
     # poisoned files
@@ -148,7 +163,7 @@ def parse_args():
     )
     identify_required_group = identify_parser.add_argument_group("Required Arguments")
     identify_required_group.add_argument(
-        "credentials", help="[domain/]username[:password] for authentication"
+        "credentials", nargs="?", help="[domain/]username[:password] for authentication. Omit when --anonymous is set."
     )
     identify_required_group.add_argument(
         "-t",
@@ -208,24 +223,7 @@ def parse_args():
         "simultaneous connections to the same host and concurrent processing "
         "will not accelerate crawling multiple shares on a single host.",
     )
-    # identify_parser.add_argument('-hashes', action="store", metavar = "LMHASH:NTHASH",
-    #                               help='NTLM hashes, format is LMHASH:NTHASH')
-    # identify_parser.add_argument('-no-pass', action="store_true",
-    #                               help='don\'t ask for password (useful for -k)')
-    # identify_parser.add_argument('-k', action="store_true",
-    #                               help='Use Kerberos authentication. Grabs credentials from
-    #                               'ccache file  (KRB5CCNAME) based on target parameters. If '
-    #                               'valid credentials cannot be found, it will use the ones '
-    #                               'specified in the command line')
-    # identify_parser.add_argument('-aesKey', action="store", metavar = "hex key",
-    #                               help='AES key to use for Kerberos Authentication '
-    #                               '(128 or 256 bits)')
-    # identify_parser.add_argument('-keytab', action="store",
-    #                               help='Read keys for SPN from keytab file')
-    # identify_parser.add_argument_group('connection')
-    # identify_parser.add_argument('-dc-ip', action='store',metavar = "ip address",
-    #                               help='IP Address of the domain controller. If ommited it use'
-    #                               'the domain part (FQDN) specified in the target parameter')
+    _add_auth_args(identify_parser)
 
     # Arguments for deploying poisoned files to specified locations
     deploy_parser = subparsers.add_parser(
@@ -235,7 +233,7 @@ def parse_args():
     )
     deploy_required_group = deploy_parser.add_argument_group("Required Arguments")
     deploy_required_group.add_argument(
-        "credentials", help="[domain/]username[:password] for authentication"
+        "credentials", nargs="?", help="[domain/]username[:password] for authentication. Omit when --anonymous is set."
     )
     deploy_required_group.add_argument(
         "-a",
@@ -258,24 +256,7 @@ def parse_args():
         "payload file ending in .library-ms, .searchConnector-ms, .lnk, "
         "or .url",
     )
-    # deploy_parser.add_argument('-hashes', action="store", metavar = "LMHASH:NTHASH",
-    #                               help='NTLM hashes, format is LMHASH:NTHASH')
-    # deploy_parser.add_argument('-no-pass', action="store_true",
-    #                               help='don\'t ask for password (useful for -k)')
-    # deploy_parser.add_argument('-k', action="store_true",
-    #                               help='Use Kerberos authentication. Grabs credentials from
-    #                               'ccache file  (KRB5CCNAME) based on target parameters. If '
-    #                               'valid credentials cannot be found, it will use the ones '
-    #                               'specified in the command line')
-    # deploy_parser.add_argument('-aesKey', action="store", metavar = "hex key",
-    #                               help='AES key to use for Kerberos Authentication '
-    #                               '(128 or 256 bits)')
-    # deploy_parser.add_argument('-keytab', action="store",
-    #                               help='Read keys for SPN from keytab file')
-    # deploy_parser.add_argument_group('connection')
-    # deploy_parser.add_argument('-dc-ip', action='store',metavar = "ip address",
-    #                               help='IP Address of the domain controller. If ommited it use'
-    #                               'the domain part (FQDN) specified in the target parameter')
+    _add_auth_args(deploy_parser)
 
     # Arguments for cleaning up deployed payloads when finished
     cleanup_parser = subparsers.add_parser(
@@ -284,7 +265,7 @@ def parse_args():
     )
     cleanup_required_group = cleanup_parser.add_argument_group("Required Arguments")
     cleanup_required_group.add_argument(
-        "credentials", help="[domain/]username[:password] for authentication"
+        "credentials", nargs="?", help="[domain/]username[:password] for authentication. Omit when --anonymous is set."
     )
     cleanup_parser.add_argument(
         "-t",
@@ -293,24 +274,7 @@ def parse_args():
         help="(Default: 'payloads_written.txt') Path to a text file containing UNC "
         "paths poisoned files to clean up.",
     )
-    # cleanup_parser.add_argument('-hashes', action="store", metavar = "LMHASH:NTHASH",
-    #                               help='NTLM hashes, format is LMHASH:NTHASH')
-    # cleanup_parser.add_argument('-no-pass', action="store_true",
-    #                               help='don\'t ask for password (useful for -k)')
-    # cleanup_parser.add_argument('-k', action="store_true",
-    #                               help='Use Kerberos authentication. Grabs credentials from
-    #                               'ccache file  (KRB5CCNAME) based on target parameters. If '
-    #                               'valid credentials cannot be found, it will use the ones '
-    #                               'specified in the command line')
-    # cleanup_parser.add_argument('-aesKey', action="store", metavar = "hex key",
-    #                               help='AES key to use for Kerberos Authentication '
-    #                               '(128 or 256 bits)')
-    # cleanup_parser.add_argument('-keytab', action="store",
-    #                               help='Read keys for SPN from keytab file')
-    # cleanup_parser.add_argument_group('connection')
-    # cleanup_parser.add_argument('-dc-ip', action='store',metavar = "ip address",
-    #                               help='IP Address of the domain controller. If ommited it use'
-    #                               'the domain part (FQDN) specified in the target parameter')
+    _add_auth_args(cleanup_parser)
 
     args = parser.parse_args()
 
