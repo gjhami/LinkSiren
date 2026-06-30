@@ -70,7 +70,7 @@ def connected_target():
 
 def test_write_payload_force_false_existing_file_skips(connected_target):
     connected_target.connection.listPath.return_value = [
-        MagicMock(is_directory=lambda: False)
+        MagicMock(get_longname=lambda: "p.url", is_directory=lambda: False)
     ]
     result = connected_target.write_payload(
         path="Finance\\2026", payload_name="p.url", payload=b"data"
@@ -81,7 +81,7 @@ def test_write_payload_force_false_existing_file_skips(connected_target):
 
 def test_write_payload_force_true_overwrites(connected_target):
     connected_target.connection.listPath.return_value = [
-        MagicMock(is_directory=lambda: False)
+        MagicMock(get_longname=lambda: "p.url", is_directory=lambda: False)
     ]
     connected_target.connection.connectTree.return_value = 1
     connected_target.connection.createFile.return_value = 42

