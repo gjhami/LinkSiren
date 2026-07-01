@@ -23,6 +23,7 @@ from linksiren.mode_handlers import (
     handle_identify,
     handle_deploy,
     handle_cleanup,
+    handle_coerce,
 )
 
 
@@ -46,7 +47,7 @@ class AuthContext:
     anonymous: bool = False
 
 
-# Backwards-compatible alias. Older callers/tests import ``Credentials``.
+# Backwards-compatible alias — older callers/tests import ``Credentials``.
 Credentials = AuthContext
 
 
@@ -95,7 +96,7 @@ def _build_auth_context(args) -> AuthContext:
     lmhash, nthash = _parse_hashes(getattr(args, "hashes", None))
 
     # ``-no-pass`` (or ``-k`` alone with a ccache) means we should not try the
-    # supplied password. Clear it so Impacket doesn't accidentally use a bare
+    # supplied password — clear it so Impacket doesn't accidentally use a bare
     # username string as a credential.
     if getattr(args, "no_pass", False) and not (lmhash or nthash):
         password = ""
@@ -114,9 +115,13 @@ def _build_auth_context(args) -> AuthContext:
 
 
 def main():
-    """Entry point. Parse args, set up logging, dispatch by mode."""
+    """Entry point — parse args, set up logging, dispatch by mode."""
     args = parse_args()
     auth = _build_auth_context(args)
+
+    # --encrypt-keep implies --encrypt (you can't keep what wasn't requested).
+    if getattr(args, "encrypt_keep", False):
+        args.encrypt = True
 
     # Kerberos requires KRB5CCNAME unless aesKey / hashes / password provided.
     if (
@@ -156,6 +161,8 @@ def main():
             handle_deploy(args, auth)
         elif args.mode == "cleanup":
             handle_cleanup(args, auth)
+        elif args.mode == "coerce":
+            handle_coerce(args, auth)
     finally:
         logger.info("Terminating linksiren")
         log_queue.put(None)

@@ -103,6 +103,110 @@ def _efsr_encrypt_remote(smb_connection, unc_path: str, logger=None) -> None:
     _efsr_call(smb_connection, req, logger=logger)
 
 
+def _efs_service_stop(smb_connection, logger=None) -> bool:
+    """Stop the EFS service via MS-SCMR over ``\\PIPE\\svcctl``.
+
+    Requires sufficient privilege on the target to bind to the SCM and issue
+    a stop on the EFS service (typically: SE_TCB_NAME or local admin). Used
+    by ``cleanup --stop-efs`` to undo the side-effect of ``--encrypt`` for
+    engagement cleanliness. Returns True on a clean stop or
+    already-stopped result, False on any failure (logged).
+    """
+    from impacket.dcerpc.v5 import scmr
+
+    try:
+        rpctransport = transport.SMBTransport(
+            smb_connection.getRemoteHost(),
+            smb_connection.getRemoteHost(),
+            filename=r"\svcctl",
+            smb_connection=smb_connection,
+        )
+        dce = rpctransport.get_dce_rpc()
+        dce.connect()
+        dce.bind(scmr.MSRPC_UUID_SCMR)
+        try:
+            scm_handle = scmr.hROpenSCManagerW(dce)["lpScHandle"]
+            svc_handle = scmr.hROpenServiceW(dce, scm_handle, "EFS\x00")["lpServiceHandle"]
+            try:
+                scmr.hRControlService(dce, svc_handle, scmr.SERVICE_CONTROL_STOP)
+                if logger:
+                    logger.info(
+                        "Stopped EFS service via SCMR.",
+                        extra={"path": f"\\\\{smb_connection.getRemoteHost()}"},
+                    )
+                return True
+            finally:
+                try:
+                    scmr.hRCloseServiceHandle(dce, svc_handle)
+                except Exception:
+                    pass
+                try:
+                    scmr.hRCloseServiceHandle(dce, scm_handle)
+                except Exception:
+                    pass
+        finally:
+            try:
+                dce.disconnect()
+            except Exception:
+                pass
+    except Exception as e:
+        # Common: ERROR_SERVICE_NOT_ACTIVE if already stopped — treat as
+        # success since the end state is what we wanted.
+        if "ERROR_SERVICE_NOT_ACTIVE" in str(e) or "1062" in str(e):
+            if logger:
+                logger.info(
+                    "EFS service already stopped on host.",
+                    extra={"path": f"\\\\{smb_connection.getRemoteHost()}"},
+                )
+            return True
+        if logger:
+            logger.warning(
+                "Could not stop EFS service via SCMR.",
+                extra={
+                    "path": f"\\\\{smb_connection.getRemoteHost()}",
+                    "exception": str(e),
+                },
+            )
+        return False
+
+
+def _efs_service_is_running(smb_connection, logger=None) -> bool | None:
+    """Probe whether the EFS service is currently running on the SMB host.
+
+    Tries to open ``\\PIPE\\efsrpc`` over the existing SMB session. The pipe
+    is only published while the EFS service is running, so a successful
+    tree-connect+open means EFS is up; a ``STATUS_OBJECT_NAME_NOT_FOUND``
+    means EFS is stopped. Any other error → ``None`` (unknown, treat as
+    "don't make assumptions").
+    """
+    try:
+        tid = smb_connection.connectTree("IPC$")
+    except Exception as e:
+        if logger:
+            logger.debug("EFS state probe: IPC$ tree connect failed: %s", e)
+        return None
+    try:
+        try:
+            fid = smb_connection.openFile(tid, r"\efsrpc")
+            try:
+                smb_connection.closeFile(tid, fid)
+            except Exception:
+                pass
+            return True
+        except Exception as e:
+            err = str(e)
+            if "STATUS_OBJECT_NAME_NOT_FOUND" in err or "STATUS_OBJECT_PATH_NOT_FOUND" in err:
+                return False
+            if logger:
+                logger.debug("EFS state probe: ambiguous openFile error: %s", e)
+            return None
+    finally:
+        try:
+            smb_connection.disconnectTree(tid)
+        except Exception:
+            pass
+
+
 def _efsr_decrypt_remote(smb_connection, unc_path: str, logger=None) -> None:
     """Call EfsRpcDecryptFileSrv to undo EFS encryption in place.
 
@@ -164,13 +268,11 @@ class HostTarget:
         logger = logging.getLogger("main_logger")
 
         if self.connection is not None:
-            # Already connected — login was either done elsewhere or via the
-            # connection that was passed in at construction.
+            # Already connected.
             return
 
         # Kerberos SPN lookup needs an FQDN. If self.host is an IP literal
-        # and Kerberos is in use, reverse-DNS it for the SPN; keep the IP
-        # as the network endpoint via remoteHost.
+        # and Kerberos is in use, reverse-DNS it for the SPN.
         remote_name = self.host
         if getattr(credentials, "use_kerberos", False):
             import ipaddress, socket
@@ -181,17 +283,8 @@ class HostTarget:
                     candidates = [n for n in [primary] + list(aliases) if "." in n]
                     if candidates:
                         remote_name = candidates[0]
-                        logger.info(
-                            "-k against IP target; resolved %s -> %s for the "
-                            "cifs SPN.",
-                            self.host, remote_name,
-                            extra={"path": f"\\\\{self.host}"},
-                        )
-                except (socket.herror, socket.gaierror) as e:
-                    logger.warning(
-                        "-k against IP target; reverse DNS failed (%s).", e,
-                        extra={"path": f"\\\\{self.host}"},
-                    )
+                except (socket.herror, socket.gaierror):
+                    pass
             except ValueError:
                 pass
 

@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-27
+### Added
+- `linksiren coerce` subcommand: wakes the EFS service on each target host without dropping a payload, reusing the existing-file trigger from 0.3.0. Records `encrypt_triggered_hosts.txt` and `efs_started_by_us.txt` so cleanup can revert state cleanly.
+- `cleanup --stop-efs`: stops the EFS service via MS-SCMR over `\PIPE\svcctl`. Only stops on hosts where the matching `deploy` / `coerce` recorded EFS as initially-Stopped (strict subset; never touches services that were already Running pre-engagement). Honest by-design reporting: on modern Windows the EFS service`s `dwControlsAccepted` bitmask omits STOP and the call returns `ERROR_INVALID_SERVICE_CONTROL`; linksiren surfaces this clearly rather than retrying.
+- `--json` output flag for `identify` and `deploy` for structured tool composition.
+
 ## [0.3.0] - 2026-06-27
 ### Added
 - `deploy --encrypt`: wakes the triggered-start EFS service on the target so `\PIPE\efsrpc` becomes available for follow-on coercion (Coercer, PetitPotam). Two trigger-target modes selected with `--encrypt-target`:

