@@ -439,6 +439,28 @@ def parse_args():
     )
     _add_auth_args(deploy_parser)
 
+    # Arguments for preflight check.
+    check_parser = subparsers.add_parser(
+        "check",
+        description="Per-host preflight: authentication, listable shares, "
+        "EFS / WebClient service state, SMB signing-required flag, and "
+        "common fragile-infrastructure name patterns.",
+    )
+    check_required = check_parser.add_argument_group("Required Arguments")
+    check_required.add_argument(
+        "credentials", nargs="?",
+        help="[domain/]username[:password]. Omit when --anonymous is set.",
+    )
+    check_required.add_argument(
+        "-t", "--targets", required=True,
+        help="Path to a text file with UNC paths or bare hostnames to probe.",
+    )
+    check_parser.add_argument(
+        "--json", action="store_true", default=False, dest="json_output",
+        help="(Default: False) Emit a single-line JSON document on stdout.",
+    )
+    _add_auth_args(check_parser)
+
     # Arguments for the standalone EFS-coercion-trigger mode.
     coerce_parser = subparsers.add_parser(
         "coerce",

@@ -433,6 +433,117 @@ def handle_coerce(args, credentials):
     )
 
 
+def _fmt_running(v):
+    """Compact 3-way running indicator."""
+    return {True: "running", False: "stopped", None: "unknown"}[v]
+
+
+def handle_check(args, credentials):
+    """Per-host preflight: auth, shares, service states, signing.
+
+    Reports what each target host accepts, what shares are listable,
+    EFS / WebClient service state, SMB signing-required flag, and
+    fragile-infrastructure-pattern flags on host / share names.
+    """
+    targets = read_targets(args.targets)
+    logger = logging.getLogger("main_logger")
+    from linksiren.target import _efs_service_is_running, _webclient_service_is_running
+
+    FRAGILE_PATTERNS = (
+        "scada", "ics", "plc", "rtu", "hmi", "dcs", "historian", "-ot", "ot-",
+        "medical", "biomed", "clinical", "ehr", "emr", "pacs", "hl7",
+        "infusion", "ventilator", "imaging", "lab-", "-lab",
+        "safety", "protect-", "relay-", "substation", "turbine",
+    )
+
+    def flag_fragile(name: str) -> str:
+        low = name.lower()
+        hits = [p for p in FRAGILE_PATTERNS if p in low]
+        return ",".join(hits) if hits else ""
+
+    report = []
+    for target in targets:
+        h = {
+            "host": target.host,
+            "auth": "unreached",
+            "smb_signing_required": None,
+            "shares": [],
+            "efs_running": None,
+            "webclient_running": None,
+            "fragile_hostname_flags": flag_fragile(target.host),
+        }
+        target.connect(credentials)
+        if target.connection is None:
+            h["auth"] = "failed"
+            report.append(h)
+            continue
+        h["auth"] = "ok"
+        try:
+            h["smb_signing_required"] = bool(target.connection.isSigningRequired())
+        except Exception:
+            pass
+        h["efs_running"] = _efs_service_is_running(target.connection)
+        h["webclient_running"] = _webclient_service_is_running(target.connection)
+        try:
+            from impacket.dcerpc.v5.srvs import STYPE_DISKTREE, STYPE_MASK
+            for s in target.connection.listShares():
+                if s["shi1_type"] & STYPE_MASK == STYPE_DISKTREE:
+                    name = s["shi1_netname"][:-1]
+                    h["shares"].append({"name": name, "fragile": flag_fragile(name)})
+        except Exception as e:
+            logger.warning(
+                "check: could not enumerate shares",
+                extra={"path": f"\\\\{target.host}", "exception": str(e)},
+            )
+        report.append(h)
+
+    for h in report:
+        if h["auth"] != "ok":
+            continue
+        wc = h["webclient_running"]
+        ready_wc = (
+            "yes (WebClient running)" if wc is True
+            else "yes (WebClient stopped; triggered-start expected)" if wc is False
+            else "unknown"
+        )
+        h["payload_viability"] = {
+            ".url": {"auto_trigger": False, "needs_intranet_zone": True,
+                     "ready_now": "n/a (needs user open + intranet zone)"},
+            ".searchConnector-ms": {"auto_trigger": True, "needs_intranet_zone": True, "ready_now": ready_wc},
+            ".library-ms": {"auto_trigger": True, "needs_intranet_zone": True, "ready_now": ready_wc},
+            ".lnk": {"auto_trigger": True, "needs_intranet_zone": True,
+                     "ready_now": (
+                         "yes via WebDAV (WebClient running)" if wc is True
+                         else "yes (WebClient stopped; WebDAV-first or SMB fall-through)" if wc is False
+                         else "unknown"
+                     )},
+        }
+
+    if getattr(args, "json_output", False):
+        print(json.dumps({"mode": "check", "hosts": report}))
+        return
+    for h in report:
+        print(f"\n=== {h['host']} ===")
+        print(f"  auth: {h['auth']}")
+        if h["auth"] != "ok":
+            continue
+        print(f"  SMB signing required: {h['smb_signing_required']}"
+              f"   EFS: {_fmt_running(h['efs_running'])}"
+              f"   WebClient: {_fmt_running(h['webclient_running'])}")
+        if h["fragile_hostname_flags"]:
+            print(f"  fragile-infra hostname pattern: {h['fragile_hostname_flags']}")
+        print(f"  shares ({len(h['shares'])}):")
+        for s in h["shares"]:
+            tag = f"  fragile-infra: {s['fragile']}" if s["fragile"] else ""
+            print(f"    {s['name']}{tag}")
+        print(f"  payload viability:")
+        for ext, viab in h["payload_viability"].items():
+            trig = "parent-folder open" if viab["auto_trigger"] else "user open"
+            print(f"    {ext:<22} trigger={trig:<19} intranet-zone-needed={viab['needs_intranet_zone']}")
+            print(f"    {'':<22}   ready: {viab['ready_now']}")
+    print()
+
+
 def handle_cleanup(args, credentials):
     """
     Handles the cleanup process by connecting to each target and deleting specified payloads.

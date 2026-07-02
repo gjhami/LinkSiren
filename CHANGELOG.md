@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-27
+### Added
+- `linksiren check`: per-host preflight that reports auth result, SMB signing required, listable disk shares, EFS / WebClient service state, and per-file-type coercion viability for `.url` / `.searchConnector-ms` / `.library-ms` / `.lnk`. Output as human-readable or `--json`.
+- `_webclient_service_is_running` helper: probes `\PIPE\DAV RPC SERVICE` to determine if WebClient is up without requiring SCMR rights.
+- Fragile-infrastructure pattern flags on hostname / share-name detection (SCADA / ICS / OT / medical / safety patterns).
+
 ## [0.5.0] - 2026-06-27
 ### Added
 - `--exclude PATTERN ...` (rank / identify / deploy): case-insensitive glob patterns matched against share-relative folder paths.
