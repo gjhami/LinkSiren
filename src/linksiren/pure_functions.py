@@ -167,6 +167,46 @@ def compute_threshold_date(current_date, threshold_length):
     return current_date - timedelta(days=threshold_length)
 
 
+# Common "noise" patterns that almost every engagement wants to skip during
+# share crawl. Testers get them by default; pass --exclude-defaults-off to
+# disable, or add their own via --exclude (the two are merged).
+DEFAULT_EXCLUDE_PATTERNS = (
+    "node_modules",
+    "vendor",
+    ".git",
+    ".svn",
+    ".hg",
+    "$Recycle.Bin*",
+    "System Volume Information",
+    "__pycache__",
+    ".vscode",
+    ".idea",
+    ".DS_Store",
+    "Thumbs.db",
+)
+
+
+def path_matches_exclude(rel_path: str, patterns) -> bool:
+    """True if ``rel_path`` matches any glob in ``patterns`` (case-insensitive).
+
+    Matches against the full path AND each path segment, so
+    ``*backup*`` catches any folder in the chain containing ``backup``.
+    """
+    import fnmatch
+
+    if not patterns:
+        return False
+    low = rel_path.lower().replace("\\", "/")
+    segments = [s for s in low.split("/") if s]
+    for pat in patterns:
+        p = pat.lower().replace("\\", "/")
+        if fnmatch.fnmatchcase(low, p):
+            return True
+        if any(fnmatch.fnmatchcase(seg, p) for seg in segments):
+            return True
+    return False
+
+
 # ZERO WIDTH SPACE. NTFS accepts ASCII control chars at the filesystem
 # level, but Windows' SMB2 server (verified on Win11 25H2) rejects them
 # at the path-validation layer with STATUS_OBJECT_NAME_INVALID. U+200B

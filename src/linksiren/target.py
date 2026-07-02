@@ -223,6 +223,87 @@ def _efsr_decrypt_remote(smb_connection, unc_path: str, logger=None) -> None:
     _efsr_call(smb_connection, req, logger=logger)
 
 
+def _dfs_resolve(smb_connection, dfs_path: str, logger=None) -> str | None:
+    """Resolve a DFS namespace path to its physical backend UNC.
+
+    Issues a ``FSCTL_DFS_GET_REFERRALS`` IOCTL against the DFS namespace
+    server (the host portion of ``dfs_path``) and parses the response per
+    MS-DFSC s2.2.4. Returns the first referral target as a
+    ``\\\\<backend>\\<share>`` UNC. Returns ``None`` if the path is not a
+    DFS target or anything in the parse went wrong; caller should fall
+    back to treating the original path as a regular SMB target.
+
+    Only the network-address part of the response is interpreted; the
+    folder portion of the input path is preserved on the resolved UNC
+    since the backend share's directory tree mirrors the namespace.
+    """
+    import struct
+
+    max_referral_level = 4
+    path_w = dfs_path.encode("utf-16-le") + b"\x00\x00"
+    input_blob = struct.pack("<H", max_referral_level) + path_w
+
+    try:
+        tid = smb_connection.connectTree("IPC$")
+    except Exception as e:
+        if logger:
+            logger.debug("DFS resolve: IPC$ connect failed: %s", e)
+        return None
+    try:
+        srv = smb_connection.getSMBServer()
+        try:
+            resp = srv.ioctl(
+                treeId=tid,
+                fileId=None,
+                ctlCode=0x00060194,  # FSCTL_DFS_GET_REFERRALS
+                flags=1,
+                inputBlob=input_blob,
+                maxOutputResponse=4096,
+            )
+        except Exception as e:
+            if logger:
+                logger.debug("DFS resolve: ioctl on %r failed: %s", dfs_path, e)
+            return None
+
+        if resp is None or len(resp) < 8:
+            return None
+
+        path_consumed, num_refs, _hdr_flags = struct.unpack_from("<HHI", resp, 0)
+        if num_refs == 0:
+            return None
+        version, size = struct.unpack_from("<HH", resp, 8)
+        if version not in (3, 4):
+            if logger:
+                logger.debug("DFS resolve: unhandled referral version %d", version)
+            return None
+        net_addr_offset = struct.unpack_from("<H", resp, 8 + 16)[0]
+        abs_offset = 8 + net_addr_offset
+        if abs_offset >= len(resp):
+            return None
+        end = abs_offset
+        while end + 1 < len(resp) and resp[end:end + 2] != b"\x00\x00":
+            end += 2
+        backend_unc = resp[abs_offset:end].decode("utf-16-le", errors="replace")
+        if not backend_unc.startswith("\\\\"):
+            return None
+        consumed_chars = path_consumed // 2
+        remainder = dfs_path[consumed_chars:]
+        resolved = backend_unc + remainder
+        if logger:
+            logger.info(
+                "DFS: resolved %s -> %s",
+                dfs_path,
+                resolved,
+                extra={"path": dfs_path},
+            )
+        return resolved
+    finally:
+        try:
+            smb_connection.disconnectTree(tid)
+        except Exception:
+            pass
+
+
 class HostTarget:
     """A single SMB host and the share-or-folder paths to operate on."""
 
