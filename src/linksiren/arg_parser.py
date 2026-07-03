@@ -439,6 +439,45 @@ def parse_args():
     )
     _add_auth_args(deploy_parser)
 
+    # Arguments for AD computer discovery via LDAP.
+    discover_parser = subparsers.add_parser(
+        "discover",
+        description="Enumerate computer objects from Active Directory via "
+        "LDAP and emit a targets file usable by rank / identify / coerce. "
+        "Filters disabled accounts; optional --inactive-days trims dormant.",
+    )
+    discover_required = discover_parser.add_argument_group("Required Arguments")
+    discover_required.add_argument(
+        "credentials", nargs="?",
+        help="[domain/]username[:password] for LDAP bind.",
+    )
+    discover_parser.add_argument(
+        "--base-dn", dest="base_dn",
+        help="Base DN. Derived from credentials.domain when omitted.",
+    )
+    discover_parser.add_argument(
+        "--ldaps", action="store_true", default=False,
+        help="(Default: False) Use LDAPS (636) instead of LDAP (389).",
+    )
+    discover_parser.add_argument(
+        "--inactive-days", type=int, default=0, dest="inactive_days",
+        help="(Default: 0 = off) Drop computers whose lastLogonTimestamp is "
+        "older than N days.",
+    )
+    discover_parser.add_argument(
+        "--hostname-only", action="store_true", default=False, dest="hostname_only",
+        help="(Default: emit \\\\hostname) Emit bare hostnames.",
+    )
+    discover_parser.add_argument(
+        "-o", "--output",
+        help="(Default: stdout only) Write to this file in addition to stdout.",
+    )
+    discover_parser.add_argument(
+        "--json", action="store_true", default=False, dest="json_output",
+        help="(Default: False) Emit JSON results.",
+    )
+    _add_auth_args(discover_parser)
+
     # Arguments for preflight check.
     check_parser = subparsers.add_parser(
         "check",

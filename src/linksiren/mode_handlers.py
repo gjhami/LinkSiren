@@ -433,6 +433,122 @@ def handle_coerce(args, credentials):
     )
 
 
+def handle_discover(args, credentials):
+    """Enumerate computer objects from AD via LDAP; emit a targets file.
+
+    Output one ``\\\\<dnsHostName>`` UNC per line (or bare hostnames with
+    ``--hostname-only``). Disabled accounts are always filtered out;
+    ``--inactive-days N`` drops machines whose ``lastLogonTimestamp`` is
+    older than N days.
+    """
+    from impacket.ldap import ldap, ldapasn1
+
+    dc_ip = getattr(args, "dc_ip", None) or credentials.domain
+    if not dc_ip:
+        print("error: --dc-ip is required (no domain inferred from credentials).", file=sys.stderr)
+        sys.exit(2)
+
+    logger = logging.getLogger("main_logger")
+    if credentials.use_kerberos:
+        import ipaddress, socket
+        try:
+            ipaddress.ip_address(dc_ip)
+            try:
+                primary, aliases, _ = socket.gethostbyaddr(dc_ip)
+                candidates = [n for n in [primary] + list(aliases) if "." in n]
+                if candidates:
+                    dc_ip = candidates[0]
+                    logger.info("discover: -k with IP-form -dc-ip; resolved to %s for the ldap SPN.", dc_ip, extra={"path": None})
+            except (socket.herror, socket.gaierror) as e:
+                logger.warning("discover: -k with IP -dc-ip and reverse DNS failed (%s).", e, extra={"path": None})
+        except ValueError:
+            pass
+
+    base_dn = getattr(args, "base_dn", None)
+    if not base_dn:
+        if not credentials.domain or "." not in credentials.domain:
+            print("error: --base-dn required when credentials domain is not an FQDN.", file=sys.stderr)
+            sys.exit(2)
+        base_dn = ",".join(f"DC={p}" for p in credentials.domain.split("."))
+
+    use_ldaps = getattr(args, "ldaps", False)
+    target = f"{'ldaps' if use_ldaps else 'ldap'}://{dc_ip}"
+    conn = ldap.LDAPConnection(target, base_dn, dc_ip)
+    if credentials.use_kerberos:
+        conn.kerberosLogin(
+            credentials.username, credentials.password, credentials.domain,
+            getattr(credentials, "lmhash", ""), getattr(credentials, "nthash", ""),
+            getattr(credentials, "aes_key", ""),
+            kdcHost=getattr(credentials, "kdc_host", None), useCache=True,
+        )
+    else:
+        conn.login(
+            credentials.username, credentials.password, credentials.domain,
+            getattr(credentials, "lmhash", ""), getattr(credentials, "nthash", ""),
+        )
+
+    search_filter = "(&(objectClass=computer)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))"
+    attrs = ["dNSHostName", "sAMAccountName", "operatingSystem", "lastLogonTimestamp"]
+    raw = conn.search(searchFilter=search_filter, attributes=attrs, sizeLimit=0)
+
+    inactive_days = int(getattr(args, "inactive_days", 0) or 0)
+    cutoff_filetime = 0
+    if inactive_days > 0:
+        import time
+        seconds_cutoff = time.time() - (inactive_days * 86400)
+        cutoff_filetime = int((seconds_cutoff + 11644473600) * 10_000_000)
+
+    hosts = []
+    for entry in raw:
+        if not isinstance(entry, ldapasn1.SearchResultEntry):
+            continue
+        host = sam = os_ = None
+        last_logon = 0
+        for attr in entry["attributes"]:
+            name = str(attr["type"])
+            vals = [str(v) for v in attr["vals"]]
+            if not vals:
+                continue
+            if name == "dNSHostName":
+                host = vals[0]
+            elif name == "sAMAccountName":
+                sam = vals[0]
+            elif name == "operatingSystem":
+                os_ = vals[0]
+            elif name == "lastLogonTimestamp":
+                try:
+                    last_logon = int(vals[0])
+                except ValueError:
+                    pass
+        if not host and sam and sam.endswith("$") and credentials.domain:
+            host = sam[:-1] + "." + credentials.domain.lower()
+        if not host:
+            continue
+        if cutoff_filetime and last_logon and last_logon < cutoff_filetime:
+            continue
+        hosts.append({"host": host, "os": os_ or "", "last_logon_filetime": last_logon})
+
+    hostname_only = getattr(args, "hostname_only", False)
+    out_path = getattr(args, "output", None)
+    out_lines = [h["host"] if hostname_only else f"\\\\{h['host']}" for h in hosts]
+
+    if getattr(args, "json_output", False):
+        print(json.dumps({
+            "mode": "discover", "base_dn": base_dn, "dc": dc_ip,
+            "computer_count": len(hosts), "computers": hosts,
+        }))
+    else:
+        for line in out_lines:
+            print(line)
+        print(f"# {len(out_lines)} computer(s) discovered", file=sys.stderr)
+
+    if out_path:
+        with open(out_path, "w", encoding="utf-8") as f:
+            for line in out_lines:
+                f.write(line + "\n")
+        print(f"# wrote {out_path}", file=sys.stderr)
+
+
 def _fmt_running(v):
     """Compact 3-way running indicator."""
     return {True: "running", False: "stopped", None: "unknown"}[v]
