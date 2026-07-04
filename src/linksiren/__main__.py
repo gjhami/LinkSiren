@@ -26,6 +26,7 @@ from linksiren.mode_handlers import (
     handle_coerce,
     handle_check,
     handle_discover,
+    handle_target_sessions,
 )
 
 
@@ -169,6 +170,8 @@ def main():
             handle_check(args, auth)
         elif args.mode == "discover":
             handle_discover(args, auth)
+        elif args.mode == "target-sessions":
+            handle_target_sessions(args, auth)
     finally:
         logger.info("Terminating linksiren")
         log_queue.put(None)

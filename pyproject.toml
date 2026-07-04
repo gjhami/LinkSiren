@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "linksiren"
-version = "0.7.0"
+version = "0.8.0"
 description = "Generation, targeted deployment, and scalable cleanup for files that coerce Windows authentication."
 readme = "README.md"
 authors = [{ name = "George Hamilton"}]

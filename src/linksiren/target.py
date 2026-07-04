@@ -223,6 +223,72 @@ def _efsr_decrypt_remote(smb_connection, unc_path: str, logger=None) -> None:
     _efsr_call(smb_connection, req, logger=logger)
 
 
+SYSTEM_USER_FOLDERS = frozenset(name.lower() for name in (
+    "Default", "Default User", "Public", "All Users", "defaultuser0",
+    "NetworkService", "LocalService", "WDAGUtilityAccount",
+    "TEMP", ".", "..",
+))
+
+
+def _enumerate_user_desktops(
+    smb_connection,
+    username_patterns,
+    include_public: bool,
+    logger=None,
+) -> list[str]:
+    """List share-relative paths to each user-desktop matching the tester's
+    selectors.
+
+    Connects to ``C$``, lists ``Users\\*``, filters system folder names,
+    applies each compiled regex case-insensitively, and yields
+    ``Users\\<user>\\Desktop`` for each match. When ``include_public`` is
+    True, prepends ``Users\\Public\\Desktop`` regardless of pattern.
+    """
+    paths = []
+    if include_public:
+        paths.append("Users\\Public\\Desktop")
+    try:
+        tid = smb_connection.connectTree("C$")
+    except Exception as e:
+        if logger:
+            logger.warning(
+                "target-sessions: cannot open C$ tree (need admin on target).",
+                extra={
+                    "path": f"\\\\{smb_connection.getRemoteHost()}\\C$",
+                    "exception": str(e),
+                },
+            )
+        return paths
+    try:
+        try:
+            listings = smb_connection.listPath(shareName="C$", path="Users\\*")
+        except Exception as e:
+            if logger:
+                logger.warning(
+                    "target-sessions: could not list C$\\Users on target.",
+                    extra={
+                        "path": f"\\\\{smb_connection.getRemoteHost()}\\C$\\Users",
+                        "exception": str(e),
+                    },
+                )
+            return paths
+        for entry in listings:
+            if not entry.is_directory():
+                continue
+            name = entry.get_longname()
+            if name.lower() in SYSTEM_USER_FOLDERS:
+                continue
+            if not any(p.search(name) for p in username_patterns):
+                continue
+            paths.append(f"Users\\{name}\\Desktop")
+    finally:
+        try:
+            smb_connection.disconnectTree(tid)
+        except Exception:
+            pass
+    return paths
+
+
 def _webclient_service_is_running(smb_connection, logger=None) -> bool | None:
     """Probe whether the WebClient service is running on the SMB host.
 
