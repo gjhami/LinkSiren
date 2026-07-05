@@ -122,6 +122,11 @@ def main():
     args = parse_args()
     auth = _build_auth_context(args)
 
+    # --quiet (top-level) gates info_print across the codebase.
+    if getattr(args, "quiet", False):
+        from linksiren.pure_functions import set_quiet
+        set_quiet(True)
+
     # --encrypt-keep implies --encrypt (you can't keep what wasn't requested).
     if getattr(args, "encrypt_keep", False):
         args.encrypt = True

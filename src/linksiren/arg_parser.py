@@ -67,6 +67,12 @@ def parse_args():
         description="Identify and rate folders in shares based on access frequency, deploy "
         "malicious URL files, and cleanup results."
     )
+    parser.add_argument(
+        "-q", "--quiet", action="store_true", default=False,
+        help="(Default: False) Suppress informational stdout (progress, "
+        "success summaries). Warnings, errors, and explicit reporting "
+        "output (--json, dry-run plan) still print.",
+    )
 
     subparsers = parser.add_subparsers(title="Modes", dest="mode")
 
@@ -437,6 +443,21 @@ def parse_args():
         "--no-dfs-dedup", action="store_true", default=False, dest="no_dfs_dedup",
         help="(Default: dedup ON) Skip the DFS referral lookup and dedupe.",
     )
+    deploy_parser.add_argument(
+        "--randomize-suffix", action="store_true", default=False,
+        dest="randomize_suffix",
+        help="(Default: False) Append a random 4-char [A-Z0-9] suffix to "
+        "the filename AND every URL path in the payload body, defeating "
+        "Explorer / WebDAV / browser per-name caches.",
+    )
+    deploy_parser.add_argument(
+        "--template",
+        help="(Default: built-in) Custom template file. Extension must match -n.",
+    )
+    deploy_parser.add_argument(
+        "--max-concurrency", type=int, default=1, dest="max_concurrency",
+        help="(Default: 1) Per-host parallelism via thread pool.",
+    )
     _add_auth_args(deploy_parser)
 
     # Arguments for target-sessions: per-host enum of real users, drop in
@@ -484,6 +505,8 @@ def parse_args():
     sessions_parser.add_argument("--encrypt", action="store_true", default=False)
     sessions_parser.add_argument("--encrypt-keep", action="store_true", default=False, dest="encrypt_keep")
     sessions_parser.add_argument("--encrypt-target", choices=("payload", "existing"), default="payload", dest="encrypt_target")
+    sessions_parser.add_argument("--randomize-suffix", action="store_true", default=False, dest="randomize_suffix")
+    sessions_parser.add_argument("--template")
     sessions_parser.add_argument("--dry-run", action="store_true", default=False, dest="dry_run")
     sessions_parser.add_argument("--resume", action="store_true", default=False)
     sessions_parser.add_argument("--rate-limit", type=float, default=0.0, dest="rate_limit")
@@ -609,6 +632,10 @@ def parse_args():
         "MS-SCMR over \\PIPE\\svcctl. Hosts where EFS was already Running "
         "pre-deploy are deliberately left alone. Requires the calling "
         "account to have privilege to stop services on the target.",
+    )
+    cleanup_parser.add_argument(
+        "--max-concurrency", type=int, default=1, dest="max_concurrency",
+        help="(Default: 1) Per-host parallelism for cleanup deletes.",
     )
     _add_auth_args(cleanup_parser)
 
