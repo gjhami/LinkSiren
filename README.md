@@ -6,7 +6,15 @@
 
 _The Siren waits thee, singing song for song._ - Walter Savage Landor
 
-LinkSiren is your new favorite escalation tactic when you're stuck as a non-privileged user with lots of access to file shares. LinkSiren distributes .library-ms, .searchConnector-ms, .url, and .lnk files to optimal locations in accessible file shares to coerce NetNTLM and Kerberos authentication over SMB and HTTP from users that open them and starts the Webclient service on their machines. It's like [Farmer](https://github.com/mdsecactivebreach/Farmer/tree/1f37598125a92c9edf41295c6c1b7c258143968d), [Lnkbomb](https://github.com/dievus/lnkbomb), or [Slinky](https://www.infosecmatter.com/crackmapexec-module-library/?cmem=smb-slinky) but it identifies the best place to put the files for maximum coercion, has scalable deployment and cleanup built in, and generates detailed logs useful for client engagements.
+LinkSiren distributes `.library-ms`, `.searchConnector-ms`, `.url`, and `.lnk` files to optimal locations in accessible SMB shares to coerce NetNTLM and Kerberos authentication from users that open them, while starting the WebClient service on their machines for follow-on relay. It identifies the best places to drop files for maximum coercion, has scalable deployment and cleanup built in, and produces structured logs useful for client engagements.
+
+## Driving LinkSiren with an AI Agent
+
+Most testers will hand LinkSiren to an AI agent (Claude Code, Cursor, etc.) and let the agent reason about scope, target shares, payload type, and intranet-zoning prerequisites. A prompt that works well:
+
+> Run a LinkSiren engagement against \<target list>. Discover computers via AD if you have creds; pick the best share locations with `identify`; deploy `.searchConnector-ms` payloads to active users' Desktops via `target-sessions` with `--invisible` and `--randomize-suffix`; start `linksiren listen` for capture; cleanup with `--stop-webclient` when done; generate an engagement report.
+
+The agent will chain `discover → identify → check → target-sessions → listen → cleanup → report` and surface any preflight failures (signing, missing EFS cert, intranet-zone issues) before doing destructive work.
 
 # Installation
 Using [uv](https://github.com/astral-sh/uv) (Recommended)
@@ -33,7 +41,10 @@ linksiren cleanup [domain/]user[:password]
 # Features
 
 - **Authentication**: NTLM password, Pass-the-Hash, Kerberos, anonymous (NULL session), SOCKS-routable. See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md).
-- **Deploy**: full flag reference at [docs/DEPLOY.md](docs/DEPLOY.md). Includes `--force` (overwrite-safe by default), `--invisible` (zero-width-prefix filename + blank-icon payload for Desktop drops), and `--probe-delete` (skip writes where you can't delete).
+- **Deploy**: full flag reference at [docs/DEPLOY.md](docs/DEPLOY.md). Safety flags (`--force`, `--invisible`, `--probe-delete`), EFS coercion (`--encrypt`), randomized suffixes, custom templates.
+- **Crawling**: exclude patterns, default noise list, per-host time budget, DFS dedup. See [docs/CRAWLING.md](docs/CRAWLING.md).
+- **Subcommands**: `check` (preflight reporting), `discover` (LDAP target enumeration), `target-sessions` (per-user Desktop drop), `coerce` (wake EFS without a payload), `listen` (HTTP NTLMSSP confirmation listener), `detect` (blue-team payload scan), `report` (engagement summary). See [docs/subcommands/](docs/subcommands/).
+- **Cleanup**: verify-by-default; `--stop-webclient` and `--stop-efs` for service-state revert.
 
 See the [CHANGELOG](CHANGELOG.md) for the per-version history.
 

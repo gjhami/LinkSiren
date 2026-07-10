@@ -602,6 +602,102 @@ def parse_args():
     )
     _add_auth_args(coerce_parser)
 
+    listen_parser = subparsers.add_parser(
+        "listen",
+        description="Run a small HTTP listener that logs incoming coercion "
+        "attempts (Edge browser HTTP, WebClient DAV PROPFIND/OPTIONS, "
+        "Microsoft-WebDAV-MiniRedir) and dumps any NTLMSSP blobs to a file "
+        "for offline analysis. Not a replacement for Responder/ntlmrelayx; "
+        "this is a confirmation-only sanity check that proves coercion "
+        "fired and lets the tester hand off blobs to those tools out of "
+        "band.",
+    )
+    listen_parser.add_argument(
+        "-p", "--port", type=int, default=80,
+        help="(Default: 80) TCP port to bind the HTTP listener on.",
+    )
+    listen_parser.add_argument(
+        "--bind", default="0.0.0.0",
+        help="(Default: 0.0.0.0) Address to bind the HTTP listener on.",
+    )
+    listen_parser.add_argument(
+        "--timeout", type=int, default=0,
+        help="(Default: 0 = run until Ctrl-C) Exit after N seconds.",
+    )
+    listen_parser.add_argument(
+        "-o", "--output", default="coerce_captures.log",
+        help="(Default: coerce_captures.log) Append captures (one per line, "
+        "timestamp + source IP + request line + NTLMSSP base64) to this file.",
+    )
+    listen_parser.add_argument(
+        "--blobs-dir", default=None,
+        help="(Default: none) When set, every NTLMSSP Type-3 (NetNTLMv2) "
+        "blob is written as a separate file in this directory, named "
+        "``<timestamp>_<src-ip>.ntlmssp.bin``. Useful for piping into "
+        "hashcat / ntlmrelayx.",
+    )
+
+    # Arguments for the engagement summary report.
+    report_parser = subparsers.add_parser(
+        "report",
+        description="Generate a markdown engagement summary from the "
+        "current directory's sidecars (payloads_written.txt, "
+        "encrypt_triggered_hosts.txt, efs_started_by_us.txt, "
+        "payloads_not_deleted.txt, detect_findings.txt, "
+        "coerce_captures.log) and linksiren.log. Useful as a client "
+        "deliverable artifact and as a final 'did we leave anything "
+        "behind' audit.",
+    )
+    report_parser.add_argument(
+        "-o", "--output", default="engagement_report.md",
+        help="(Default: engagement_report.md) Output file path.",
+    )
+    report_parser.add_argument(
+        "--logfile", default="linksiren.log",
+        help="(Default: linksiren.log) linksiren JSON log to parse.",
+    )
+
+    # Arguments for the blue-team-side detection scanner.
+    detect_parser = subparsers.add_parser(
+        "detect",
+        description="Scan SMB shares for files that look like coercion "
+        "payloads (.url with http://, .lnk with UNC icon, .searchConnector"
+        "-ms / .library-ms with simpleLocation). For defenders auditing "
+        "their own shares, or testers verifying that cleanup left no "
+        "artifact behind.",
+    )
+    detect_required = detect_parser.add_argument_group("Required Arguments")
+    detect_required.add_argument(
+        "credentials", nargs="?",
+        help="[domain/]username[:password] for authentication. Omit when "
+        "--anonymous is set.",
+    )
+    detect_required.add_argument(
+        "-t", "--targets", required=True,
+        help="Path to a text file with UNC paths to share folders to scan.",
+    )
+    detect_parser.add_argument(
+        "-md", "--max-depth", type=int, default=4,
+        help="(Default: 4) Max folder depth to recurse.",
+    )
+    detect_parser.add_argument(
+        "--include-host-allowlist",
+        help="(Default: none) Path to a file of attacker hosts (one per "
+        "line, hostname or IP) that should be treated as known-good. "
+        "Findings that reference only allowlisted hosts are reported at "
+        "INFO instead of WARNING.",
+    )
+    detect_parser.add_argument(
+        "-o", "--output", default="detect_findings.txt",
+        help="(Default: detect_findings.txt) Write findings here as "
+        "tab-separated UNC<TAB>type<TAB>signature<TAB>extracted-host.",
+    )
+    detect_parser.add_argument(
+        "--json", action="store_true", default=False, dest="json_output",
+        help="(Default: False) Emit JSON to stdout in addition to the "
+        "tab-separated output file.",
+    )
+    _add_auth_args(detect_parser)
     # Arguments for cleaning up deployed payloads when finished
     cleanup_parser = subparsers.add_parser(
         "cleanup",
