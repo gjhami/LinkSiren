@@ -11,11 +11,18 @@ All four credentialed subcommands (`rank`, `identify`, `deploy`, `cleanup`) acce
 
 ## Intranet zoning (HTTP path only)
 
-The **HTTP / WebDAV** path (`.searchConnector-ms`, `.library-ms`, `.url`) only receives NTLM when the attacker URL is in the victim's Intranet Zone. Bare hostnames (no dots) are Intranet by default; FQDNs and IPs are not. Pass a bare hostname to `-a` and the requirement is satisfied without touching the victim.
+Every built-in template except `.url` triggers SMB coercion by default; SMB does not care about zoning. The Intranet Zone only matters for the HTTP / WebDAV portion.
 
-The **SMB** path (`.lnk` icon UNC, `.url` `IconFile=`) has no zone requirement and fires against any attacker host reachable over 445.
+| File | Default template fires | Intranet zoning needed? |
+|---|---|---|
+| `.lnk` | SMB (icon UNC) | No |
+| `.searchConnector-ms` | Both. Template ships an `http://` `<simpleLocation>` and a `\\attacker\...` `<simpleLocation>` side by side. | Only for the HTTP `<simpleLocation>`. The SMB one fires regardless. |
+| `.library-ms` | Both (same shape as `.searchConnector-ms`) | Same. |
+| `.url` | HTTP (`URL=`). The template's `IconFile=` points at a local Windows DLL, not the attacker. | Yes. Use `--template` with `IconFile=\\<attacker>\...` if you want SMB out of `.url`. |
 
-To get intranet-zoned:
+Bare hostnames (no dots) are in the Intranet Zone by default; FQDNs and IPs are not. Pass a bare hostname to `-a` and the HTTP path also fires.
+
+To get intranet-zoned when the default doesn't work:
 
 * [DNS Hijacking: Say My Name](https://alittleinsecure.com/dns-hijacking-say-my-name/) - full walkthrough.
 * [krbrelayx dnstool.py](https://github.com/dirkjanm/krbrelayx) - create AD DNS records as a domain user.

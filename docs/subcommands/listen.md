@@ -4,13 +4,9 @@ Lightweight HTTP listener that captures NTLMSSP Type-1 / Type-3 from victims res
 
 ## When to use
 
-Almost never as your primary capture path. In a real engagement you relay the inbound auth with [`ntlmrelayx`](https://github.com/fortra/impacket) (NTLM) or [`krbrelayx`](https://github.com/dirkjanm/krbrelayx) (Kerberos) so the coerced session becomes an authenticated session on a target of your choice. `listen` is useful as:
+For development, testing, and coercion-viability sanity checks. In a real engagement, use [`ntlmrelayx`](https://github.com/fortra/impacket) (NTLM) or [`krbrelayx`](https://github.com/dirkjanm/krbrelayx) (Kerberos) instead. Both of those tools relay the inbound auth AND write the NTLMSSP blobs to disk by default, so you get relay-derived access AND cracking material without needing a second listener.
 
-* An offline archive of every NTLMSSP blob for hashcat cracking or later replay.
-* A confirmation surface when you are testing coercion viability and do not want to stand up a full relay yet.
-* A fallback when the relay target isn't reachable.
-
-Run `ntlmrelayx` first; run `listen` alongside if you want the archive.
+`listen` exists so you can iterate on payloads and check that coercion is firing without standing up a relay chain. It has no advantage over `ntlmrelayx` / `krbrelayx` when you actually want to use captures.
 
 ## Usage
 

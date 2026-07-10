@@ -22,11 +22,13 @@ For each host in `-t`:
 
 ## Intranet zoning requirement
 
-The intranet-zone requirement applies **only to the HTTP / WebDAV path** (`.searchConnector-ms`, `.library-ms`, and `.url`). Windows only sends NTLM over HTTP when the attacker URL is in the victim's Intranet Zone. A bare hostname (no dots) is Intranet by default; FQDNs and IPs are not.
+`.searchConnector-ms` and `.library-ms` templates ship with both an `http://<attacker>/test1` and a `\\<attacker>\test2` `<simpleLocation>` entry. Windows fires both; the SMB URL fires without any zoning and captures NTLM against any attacker host reachable on 445. The HTTP URL only fires if the attacker URL is in the victim's Intranet Zone (bare hostname is Intranet by default; FQDNs and IPs are not) and it is the URL that starts the WebClient service.
 
-The **SMB path** (`.lnk` icon UNC, `.url` `IconFile=`) has no intranet-zone requirement. It fires against any attacker host the victim can reach on 445.
+`.lnk` fires over SMB (icon UNC). No zoning needed.
 
-To get intranet-zoned:
+`.url` fires over HTTP by default (the built-in template's `IconFile=` points at a local Windows DLL). To get SMB out of `.url`, use `--template` with a custom file whose `IconFile=` points at an attacker UNC.
+
+To get intranet-zoned for the HTTP portion:
 
 * [DNS Hijacking: Say My Name](https://alittleinsecure.com/dns-hijacking-say-my-name/) - definitive walkthrough.
 * [krbrelayx dnstool.py](https://github.com/dirkjanm/krbrelayx) - add DNS records to AD as a domain user.
