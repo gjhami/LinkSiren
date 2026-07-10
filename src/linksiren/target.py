@@ -103,71 +103,112 @@ def _efsr_encrypt_remote(smb_connection, unc_path: str, logger=None) -> None:
     _efsr_call(smb_connection, req, logger=logger)
 
 
-def _efs_service_stop(smb_connection, logger=None) -> bool:
-    """Stop the EFS service via MS-SCMR over ``\\PIPE\\svcctl``.
+def _service_stop(
+    smb_connection, service_name: str, logger=None,
+    by_design_unsupported_msg: str | None = None,
+) -> bool:
+    """Stop ``service_name`` via MS-SCMR over ``\\PIPE\\svcctl``.
 
-    Requires sufficient privilege on the target to bind to the SCM and issue
-    a stop on the EFS service (typically: SE_TCB_NAME or local admin). Used
-    by ``cleanup --stop-efs`` to undo the side-effect of ``--encrypt`` for
-    engagement cleanliness. Returns True on a clean stop or
-    already-stopped result, False on any failure (logged).
+    Returns True on a clean stop or already-stopped result. Returns
+    False (with a clear log) when the service refuses STOP or the call
+    fails for any reason.
+
+    ``by_design_unsupported_msg``: used as the WARNING body when the
+    service replies ERROR_INVALID_SERVICE_CONTROL (the dwControlsAccepted
+    bitmask omits STOP). This is how EFS-on-modern-Windows surfaces
+    its hardened state honestly.
     """
     from impacket.dcerpc.v5 import scmr
 
+    SC_MANAGER_CONNECT = 0x0001
+    SERVICE_QUERY_STATUS = 0x0004
+    SERVICE_STOP = 0x0020
+    minimal_svc_access = SERVICE_STOP | SERVICE_QUERY_STATUS
+    host = smb_connection.getRemoteHost()
+
     try:
         rpctransport = transport.SMBTransport(
-            smb_connection.getRemoteHost(),
-            smb_connection.getRemoteHost(),
-            filename=r"\svcctl",
-            smb_connection=smb_connection,
+            host, host, filename=r"\svcctl", smb_connection=smb_connection,
         )
         dce = rpctransport.get_dce_rpc()
         dce.connect()
         dce.bind(scmr.MSRPC_UUID_SCMR)
         try:
-            scm_handle = scmr.hROpenSCManagerW(dce)["lpScHandle"]
-            svc_handle = scmr.hROpenServiceW(dce, scm_handle, "EFS\x00")["lpServiceHandle"]
+            scm_handle = scmr.hROpenSCManagerW(
+                dce, dwDesiredAccess=SC_MANAGER_CONNECT
+            )["lpScHandle"]
+            svc_handle = scmr.hROpenServiceW(
+                dce, scm_handle, f"{service_name}\x00",
+                dwDesiredAccess=minimal_svc_access,
+            )["lpServiceHandle"]
             try:
                 scmr.hRControlService(dce, svc_handle, scmr.SERVICE_CONTROL_STOP)
                 if logger:
                     logger.info(
-                        "Stopped EFS service via SCMR.",
-                        extra={"path": f"\\\\{smb_connection.getRemoteHost()}"},
+                        f"Stopped {service_name} service via SCMR.",
+                        extra={"path": f"\\\\{host}"},
                     )
                 return True
             finally:
-                try:
-                    scmr.hRCloseServiceHandle(dce, svc_handle)
-                except Exception:
-                    pass
-                try:
-                    scmr.hRCloseServiceHandle(dce, scm_handle)
-                except Exception:
-                    pass
+                try: scmr.hRCloseServiceHandle(dce, svc_handle)
+                except Exception: pass
+                try: scmr.hRCloseServiceHandle(dce, scm_handle)
+                except Exception: pass
         finally:
-            try:
-                dce.disconnect()
-            except Exception:
-                pass
+            try: dce.disconnect()
+            except Exception: pass
     except Exception as e:
-        # Common: ERROR_SERVICE_NOT_ACTIVE if already stopped — treat as
-        # success since the end state is what we wanted.
-        if "ERROR_SERVICE_NOT_ACTIVE" in str(e) or "1062" in str(e):
+        msg = str(e)
+        if "ERROR_SERVICE_NOT_ACTIVE" in msg or "1062" in msg:
             if logger:
                 logger.info(
-                    "EFS service already stopped on host.",
-                    extra={"path": f"\\\\{smb_connection.getRemoteHost()}"},
+                    f"{service_name} service already stopped on host.",
+                    extra={"path": f"\\\\{host}"},
                 )
             return True
+        if "ERROR_INVALID_SERVICE_CONTROL" in msg or "0x41c" in msg or "1052" in msg:
+            if logger:
+                logger.warning(
+                    by_design_unsupported_msg
+                    or f"{service_name} service does not accept SERVICE_CONTROL_STOP via SCMR.",
+                    extra={"path": f"\\\\{host}", "exception": msg},
+                )
+            return False
         if logger:
             logger.warning(
-                "Could not stop EFS service via SCMR.",
-                extra={
-                    "path": f"\\\\{smb_connection.getRemoteHost()}",
-                    "exception": str(e),
-                },
+                f"Could not stop {service_name} service via SCMR.",
+                extra={"path": f"\\\\{host}", "exception": msg},
             )
         return False
+
+
+def _efs_service_stop(smb_connection, logger=None) -> bool:
+    """Thin wrapper: stop EFS via SCMR.
+
+    On modern Windows EFS declines STOP (dwControlsAccepted omits the
+    bit). Surfaces the by-design rejection honestly via
+    ``by_design_unsupported_msg``.
+    """
+    return _service_stop(
+        smb_connection, "EFS", logger=logger,
+        by_design_unsupported_msg=(
+            "EFS service does NOT accept SERVICE_CONTROL_STOP via SCMR "
+            "on this Windows version (by design; see dwControlsAccepted "
+            "bitmask). Remote stop via this path is impossible regardless "
+            "of privilege; service remains running until next reboot."
+        ),
+    )
+
+
+def _webclient_service_stop(smb_connection, logger=None) -> bool:
+    """Thin wrapper: stop WebClient via SCMR.
+
+    Unlike EFS, WebClient accepts STOP under normal Windows
+    configuration. If a legitimate user has an active WebDAV handle,
+    Windows refuses or auto-restarts the service shortly after, so this
+    is safe to use opportunistically.
+    """
+    return _service_stop(smb_connection, "WebClient", logger=logger)
 
 
 def _efs_service_is_running(smb_connection, logger=None) -> bool | None:
@@ -1006,14 +1047,33 @@ class HostTarget:
 
         try:
             self.connection.deleteFile(shareName=share, pathName=payload_path)
-            logger.info("Successfully deleted payload.", extra={"path": unc_path})
-            return True
         except Exception as e:
             logger.critical(
                 "Failed to delete payload",
                 extra={"path": unc_path, "exception": str(e)},
             )
             return False
+
+        # Verify-by-default: SMB delete is asynchronous on some servers
+        # and an undeleted payload at engagement close is a real artifact,
+        # so prove the removal with an exact-filename listPath probe.
+        # Matching on the exact filename avoids false positives during
+        # parallel cleanup of sibling files (e.g., pr_a.url vs pr_ab.url).
+        expected_name = payload_path.rsplit("\\", 1)[-1]
+        try:
+            entries = self.connection.listPath(shareName=share, path=payload_path)
+            still_there = any(e.get_longname() == expected_name for e in entries)
+        except Exception:
+            still_there = False
+
+        if still_there:
+            logger.critical(
+                "Delete returned success but file is still present on disk.",
+                extra={"path": unc_path},
+            )
+            return False
+        logger.info("Successfully deleted payload (verified).", extra={"path": unc_path})
+        return True
 
     # ------------------------------------------------------------------ #
     # Folder review                                                      #
