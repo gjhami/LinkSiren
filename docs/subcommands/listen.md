@@ -1,6 +1,16 @@
 # `linksiren listen`
 
-Lightweight HTTP listener that captures NTLMSSP Type-1 / Type-3 from victims responding to coercion attempts. Confirmation surface alongside `target-sessions` / `coerce`, not a Responder replacement.
+Lightweight HTTP listener that captures NTLMSSP Type-1 / Type-3 from victims responding to coercion attempts.
+
+## When to use
+
+Almost never as your primary capture path. In a real engagement you relay the inbound auth with [`ntlmrelayx`](https://github.com/fortra/impacket) (NTLM) or [`krbrelayx`](https://github.com/dirkjanm/krbrelayx) (Kerberos) so the coerced session becomes an authenticated session on a target of your choice. `listen` is useful as:
+
+* An offline archive of every NTLMSSP blob for hashcat cracking or later replay.
+* A confirmation surface when you are testing coercion viability and do not want to stand up a full relay yet.
+* A fallback when the relay target isn't reachable.
+
+Run `ntlmrelayx` first; run `listen` alongside if you want the archive.
 
 ## Usage
 
