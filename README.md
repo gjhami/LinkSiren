@@ -3,6 +3,9 @@
 [![Latest Version](https://img.shields.io/pypi/v/LinkSiren.svg)](https://pypi.python.org/pypi/LinkSiren/)
 [![Python Versions](https://img.shields.io/badge/python-3.9%2B%20%7C%20PyPy-blue.svg)](https://pypi.org/project/linksiren/)
 [![GitHub License](https://img.shields.io/github/license/gjhami/LinkSiren)](https://github.com/gjhami/LinkSiren/blob/main/LICENSE)
+[![PyPI downloads](https://img.shields.io/pypi/dm/linksiren.svg?label=PyPI%20downloads)](https://pypi.org/project/linksiren/)
+[![Downloads](https://static.pepy.tech/badge/linksiren)](https://pepy.tech/project/linksiren)
+[![Last commit](https://img.shields.io/github/last-commit/gjhami/LinkSiren)](https://github.com/gjhami/LinkSiren/commits/main)
 
 _The Siren waits thee, singing song for song._ - Walter Savage Landor
 
