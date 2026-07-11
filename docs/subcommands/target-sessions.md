@@ -22,7 +22,18 @@ For each host in `-t`:
 
 ## Intranet zoning requirement
 
-For HTTP / WebDAV coercion, the attacker hostname in the payload must be Intranet-zoned on the victim - a bare hostname (no dots) or a pre-staged ZoneMap entry. Otherwise Windows refuses to send NTLM cross-zone.
+`.searchConnector-ms` and `.library-ms` templates ship with both an `http://<attacker>/test1` and a `\\<attacker>\test2` `<simpleLocation>` entry. Windows fires both; the SMB URL fires without any zoning and captures NTLM against any attacker host reachable on 445. The HTTP URL only fires if the attacker URL is in the victim's Intranet Zone (bare hostname is Intranet by default; FQDNs and IPs are not) and it is the URL that starts the WebClient service.
+
+`.lnk` fires over SMB (icon UNC). No zoning needed.
+
+`.url` fires over HTTP by default (the built-in template's `IconFile=` points at a local Windows DLL). To get SMB out of `.url`, use `--template` with a custom file whose `IconFile=` points at an attacker UNC.
+
+To get intranet-zoned for the HTTP portion:
+
+* [DNS Hijacking: Say My Name](https://alittleinsecure.com/dns-hijacking-say-my-name/) - definitive walkthrough.
+* [krbrelayx dnstool.py](https://github.com/dirkjanm/krbrelayx) - add DNS records to AD as a domain user.
+* [DDSpoof](https://github.com/akamai/DDSpoof) - DHCP DNS record poisoning, often unauthenticated.
+* [Responder](https://github.com/lgandx/Responder) - LLMNR / NBNS / mDNS poisoning fallback.
 
 ## Auth
 

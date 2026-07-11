@@ -6,7 +6,7 @@ Three common engagement flows end to end with LinkSiren. Each one starts from va
 
 The most common flow. Uses `.searchConnector-ms` on active users' Desktops. When a user's Explorer renders their Desktop, the WebClient service starts, the tile's URL fires as HTTP over WebDAV, and NTLM auth is coerced. Relayed to LDAPS, that auth grants you write access to `msDS-AllowedToActOnBehalfOfOtherIdentity` on the victim's computer object, which is Resource-Based Constrained Delegation. From there you get SYSTEM on the victim via S4U2Self + S4U2Proxy.
 
-Prereqs: attacker hostname in the victim's Intranet Zone (bare hostname, no dots, works by default on Win11). LDAPS on the DC. A viable computer object whose LDAP session isn't signed.
+Prereqs: attacker hostname in the victim's Intranet Zone (bare hostname, no dots, works by default on Win11; see [DNS Hijacking: Say My Name](https://alittleinsecure.com/dns-hijacking-say-my-name/), [krbrelayx dnstool.py](https://github.com/dirkjanm/krbrelayx), [DDSpoof](https://github.com/akamai/DDSpoof), or [Responder](https://github.com/lgandx/Responder) if the default isn't reachable). LDAPS on the DC. A viable computer object whose LDAP session isn't signed.
 
 ```bash
 # 1. Discover viable computer targets in the domain.
