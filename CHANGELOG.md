@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-07-11
+### Docs
+- README restructured: keyword-dense pitch, AI-agent driving section with two sample prompts, `pipx` install alongside `uv`, five-command Quick Start, twelve-row Subcommands table, comparison against Farmer / Lnkbomb / Slinky / ntlm_theft, per-mode SOCKS routing note, downloads / last-commit badges.
+- New `docs/ATTACK-PATHS.md` with three common engagement flows end to end: HTTP coercion relayed to LDAPS for RBCD, bulk-share opportunistic capture, and EFS trigger for computer-account authentication.
+- Intranet-Zone requirement documented per file type. `.searchConnector-ms` and `.library-ms` fire SMB with no zoning by default (both templates ship an `http://` and a `\\...` `<simpleLocation>`); only the HTTP portion needs zoning. `.lnk` is SMB-only. `.url` is HTTP-only.
+- `linksiren listen` reframed as a development / testing surface. In real engagements, use `ntlmrelayx` or `krbrelayx`, which both relay AND save NTLMSSP blobs by default.
+- References for how to get intranet-zoned added across the docs (blog walkthrough, `krbrelayx dnstool.py`, DDSpoof, Responder).
+- Retired the TODO checklist, the duplicated `jq` snippet block (now only in `docs/TROUBLESHOOTING.md`), the pre-0.10.0 `<details>` `--help` blocks, and the "What Payload Type Should I Use?" paragraph (in `docs/DEPLOY.md`).
+
 ## [0.10.0] - 2026-06-27
 ### Added
 - `linksiren listen`: HTTP confirmation listener that captures NTLMSSP Type-1 / Type-3 from coercion attempts. Optional `--blobs-dir` saves Type-3 blob bodies for hashcat / ntlmrelayx hand-off.
